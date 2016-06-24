@@ -1,0 +1,371 @@
+/*
+/home/Switch1/esp01/				  - svetlo na meteo budce - DONE 1xdigital
+/home/Switch2/esp02/	              - svetlo venku
+/flat/EnergyMeter/esp09/ 			  - energy meter doma - DONE 1xdigital
+/home/EnergyMeter/esp02/     	      - energy meter chata - DONE 1xdigital
+/home/bedNew/esp03/			 		  - teploty - DONE 1xdigital
+/home/roof/esp04 					  - vetruse - 2 vstupy, 1xdigital, 1xanalog
+/home/Srazkomer/esp05/ 				  - srazkomer - 1xdigital
+/home/Corridor/esp06/   			  - topeni DONE serial
+/home/Corridor/esp07/				  - solar PROGRESS serial
+/home/meteo/esp08 					  - meteo
+/home/sklenik/esp10 				  - sklenik DONE I2C
+*/
+
+/*TODO
+/home/Switch1/p1/ -> /home/Meteo/esp01/
+/home/Switch1/p2/ -> /home/Meteo/esp10/
+/home/EnergyMeter/esp02/s0/ -> /home/EnergyMeter/esp02/
+ */
+
+Group All
+Group dgGF                                                                                (All)
+Group dgFF                                                                                (All)
+Group dgRoof                                                                              (All)
+Group dgOutdoor                                                                           (All)
+Group dgTemperatures                                                                      (All)
+Group dgTemperaturesIN                                                                    (All)
+Group dgLights                                                                            (All)
+Group WeatherYahoo                                                                        (All)
+Group dgSolar                                                                             (All)
+Group dgCentralHeating                                                                    (All)
+Group dgStatusy                                                                           (All)
+
+Group dGF_Living                  "Obývák a kuchyně"  <kitchen>                           (dgGF)
+Group dGF_Corridor                "Chodba"            <corridor>                          (dgGF)
+Group dGF_Hall                    "Hala"              <corridor>                          (dgGF)
+Group dGF_Bath                    "Koupelna"          <bath>                              (dgGF)
+Group dGF_Work                    "Dílna"             <office>                            (dgGF)
+Group dGF_Elektro                 "Elektroměr chata"        <energy>                      (dgGF)
+                                    
+Group dFF_BedN                    "Ložnice nová"      <bedroom>                           (dgFF)
+Group dFF_BedO                    "Ložnice stará"     <bedroom>                           (dgFF)
+
+Group dOutdoor_Meteo              "Meteostanice"      <video>                             (dgOutdoor)
+Group dOutdoor_Green              "Skleník"           <greenhouse>                        (dgOutdoor)
+
+Group dgSolarAstro                "Astro"             <sun>                               (dgSolar)
+
+Group dgElektroFlat                                                                       (All)
+
+Group dgStatusyHB                 "HeartBeat"          <heart>                            (dgStatusy)
+Group dgStatusyVerze              "Verze"              <keyring>                          (dgStatusy)
+Group dgStatusyLast               "Last update"        <clock>                            (dgStatusy)
+
+
+/*ENERGY METER FLAT*/
+Number EnergyTotalFlat                "Stav [%.3f kWh]"  <energy>       (dgElektroFlat) 
+    {mqtt="<[broker:/flat/EnergyMeter/esp09/EnergyTotalFlat:state:default]"}              
+Number PulseFlat                      "Počet impulzů [%.0f]"                    <energy>       (dgElektroFlat) 
+    {mqtt="<[broker:/flat/EnergyMeter/esp09/Pulse:state:default]"}              
+Number EnergyHourFlat                 "Spotřeba hodina[%.3f kWh]"               <energy>       (dgElektroFlat) 
+    {mqtt="<[broker:/flat/EnergyMeter/esp09/EnergyHourFlat:state:default]"}              
+Number EnergyDayFlat                  "Spotřeba den [%.3f kWh]"                 <energy>       (dgElektroFlat) 
+    {mqtt="<[broker:/flat/EnergyMeter/esp09/EnergyDayFlat:state:default]"}              
+Number EnergyMonthFlat                "Spotřeba měsíc[%.3f kWh]"                <energy>       (dgElektroFlat) 
+    {mqtt="<[broker:/flat/EnergyMeter/esp09/EnergyMonthFlat:state:default]"}              
+Number EnergyYearFlat                 "Spotřeba rok[%.3f kWh]"                  <energy>       (dgElektroFlat) 
+    {mqtt="<[broker:/flat/EnergyMeter/esp09/EnergyYearFlat:state:default]"}              
+Number ConsumptionFlat                "Příkon [%.0f W]"                         <energy>       (dgElektroFlat) 
+Number PulseLengthFlat                "Čas mezi dvěma pulsy [%.0f ms]"          <energy>       (dgElektroFlat) 
+    {mqtt="<[broker:/flat/EnergyMeter/esp09/pulseLength:state:default]"}              
+Number VersionSWFlat                  "Verze SW EnergyMeter doma [%.2f]"             <keyring>      (dgElektroFlat, dgStatusyVerze, dgStatusy) 
+    {mqtt="<[broker:/flat/EnergyMeter/esp09/VersionSW:state:default]"}              
+Number HeartBeatFlat                  "HB elměr doma [%.0f]"                       <heart>     (dgElektroFlat, dgStatusyHB, dgStatusy) 
+    {mqtt="<[broker:/flat/EnergyMeter/esp09/HeartBeat:state:default]"}              
+DateTime LastUpdateEnergyFlat          "Update elměr doma [%1$ta %1$td %1$tb %1$tY %1$tT]"   <clock>   (dgElektroFlat, dgStatusyLast, dgStatusy) 
+Switch dGEnergyFlat_Restart            "Restart ESP"                      		<socket>        (dgElektroFlat)
+    {mqtt=">[broker:/flat/EnergyMeter/esp09/com:command:on:ON],
+           >[broker:/flat/EnergyMeter/esp09/com:command:off:OFF],
+           <[broker:/flat/EnergyMeter/esp09/state:state:default]"}
+
+
+
+Switch lamp1                      "Halogen"                       (dgOutdoor, dgLights)
+    {mqtt=">[broker:/home/Switch1/esp01/com:command:on:ON],
+           >[broker:/home/Switch1/esp01/com:command:off:OFF],
+           <[broker:/home/Switch1/esp01/state:state:default]"}
+Number HeartBeatSwitch1           "HB halogen [%.0f]"                       <heart>        (dgOutdoor,dgStatusyHB, dgStatusy) 
+    {mqtt="<[broker:/home/Switch1/esp01/HeartBeat:state:default]"}              
+Number VersionSWSwitch1           "Verze SW Halogen [%.0f]"                 <keyring>      (dgOutdoor,dgStatusyVerze,dgStatusy) 
+    {mqtt="<[broker:/home/Switch1/esp01/VersionSW:state:default]"}              
+DateTime LastUpdateSwitch1         "Update halogen [%1$ta %1$td %1$tb %1$tY %1$tT]"   <clock>   (dgOutdoor, dgStatusyLast,dgStatusy) 
+Switch dGlamp1_Restart             "Restart ESP"                      		<socket>        (dgOutdoor)
+    {mqtt=">[broker:/home/Switch1/esp01/comres:command:on:ON],
+           >[broker:/home/Switch1/esp01/comres:command:off:OFF],
+           <[broker:/home/Switch1/esp01/stateres:state:default]"}
+
+
+
+Switch lamp2                      "Venkovní"                       (dgOutdoor, dgLights)
+    {mqtt=">[broker:/home/Switch2/esp02/com:command:on:ON],
+           >[broker:/home/Switch2/esp02/com:command:off:OFF],
+           <[broker:/home/Switch2/esp02/state:state:default]"}
+Number HeartBeatSwitch2           "HB venkovní [%.0f]"                       <heart>        (dgOutdoor, dgStatusyHB,dgStatusy) 
+    {mqtt="<[broker:/home/Switch2/esp02/HeartBeat:state:default]"}              
+Number VersionSWSwitch2           "Verze SW Venkovní [%.0f]"                 <keyring>      (dgOutdoor,dgStatusyVerze,dgStatusy) 
+    {mqtt="<[broker:/home/Switch2/esp02/VersionSW:state:default]"}              
+DateTime LastUpdateSwitch2         "Update venkovní [%1$ta %1$td %1$tb %1$tY %1$tT]"   <clock>   (dgOutdoor, dgStatusyLast,dgStatusy) 
+Switch dGlamp2_Restart             "Restart ESP"                      		<socket>        (dgOutdoor)
+    {mqtt=">[broker:/home/Switch2/esp02/comres:command:on:ON],
+           >[broker:/home/Switch2/esp02/comres:command:off:OFF],
+           <[broker:/home/Switch2/esp02/stateres:state:default]"}
+
+
+//ENERGY METER HOUSE   
+Number EnergyTotal                "Stav [%.3f kWh]"  <energy>       (dGF_Elektro) 
+    {mqtt="<[broker:/home/EnergyMeter/esp02/EnergyTotal:state:default]"}
+Number Pulse                      "Počet impulzů [%.0f]"                    <energy>       (dGF_Elektro) 
+    {mqtt="<[broker:/home/EnergyMeter/esp02/Pulse:state:default]"}              
+Number EnergyHour                 "Spotřeba hodina[%.3f kWh]"               <energy>       (dGF_Elektro) 
+    {mqtt="<[broker:/home/EnergyMeter/esp02/EnergyHour:state:default]"}
+Number EnergyDay                  "Spotřeba den [%.3f kWh]"                 <energy>       (dGF_Elektro) 
+    {mqtt="<[broker:/home/EnergyMeter/esp02/EnergyDay:state:default]"}
+Number EnergyMonth                "Spotřeba měsíc[%.3f kWh]"                <energy>       (dGF_Elektro) 
+    {mqtt="<[broker:/home/EnergyMeter/esp02/EnergyMonth:state:default]"}
+Number EnergyYear                 "Spotřeba rok[%.3f kWh]"                  <energy>       (dGF_Elektro) 
+    {mqtt="<[broker:/home/EnergyMeter/esp02/EnergyYear:state:default]"}
+Number Consumption                "Příkon [%.0f W]"                         <energy>       (dGF_Elektro) 
+Number PulseLength                "Čas mezi dvěma pulsy [%.0f ms]"          <energy>       (dGF_Elektro) 
+    {mqtt="<[broker:/home/EnergyMeter/esp02/pulseLength:state:default]"}              
+Number VersionSW                  "Verze SW EnergyMeter chata [%.2f]"             <keyring>      (dGF_Elektro, dgStatusyVerze,dgStatusy) 
+    {mqtt="<[broker:/home/EnergyMeter/esp02/VersionSW:state:default]"}              
+Number HeartBeat                  "HB elměr chata [%.0f]"                   <heart>        (dGF_Elektro, dgStatusyHB,dgStatusy) 
+    {mqtt="<[broker:/home/EnergyMeter/esp02/HeartBeat:state:default]"}              
+DateTime LastUpdateEnergy         "Update elměr chata [%1$ta %1$td %1$tb %1$tY %1$tT]"     <clock>   (dGF_Elektro, dgStatusyLast,dgStatusy) 
+Switch dGEnergy_Restart           "Restart ESP"                      		<socket>        (dGF_Elektro)
+    {mqtt=">[broker:/home/EnergyMeter/esp02/com:command:on:ON],
+           >[broker:/home/EnergyMeter/esp02/com:command:off:OFF],
+           <[broker:/home/EnergyMeter/esp02/state:state:default]"}
+
+    
+Group:Switch:OR(ON, OFF)     dgALights     "Všechna světla [(%d)]"                        (All)
+
+//Obyvak
+Switch Light_GF_Living_Kitchen    "Linka"                                                 (dGF_Living, dgLights)
+Switch Light_GF_Living_Main       "Hlavní"                                                (dGF_Living, dgLights)
+
+Number LivingRoom_temp            "Teplota obývák [%.1f °C]"        <temperature>         (dgTemperatures, dGF_Living, dgTemperaturesIN) 
+  {mqtt="<[broker:/home/bedNew/esp03/tLivingRoom:state:default]"}
+
+Number BedN_temp                  "Teplota ložnice nová [%.1f °C]"  <temperature>         (dgTemperatures, dFF_BedN, dgTemperaturesIN) 
+  {mqtt="<[broker:/home/bedNew/esp03/tBedRoomNew:state:default]"}
+
+Number BedO_temp                  "Teplota ložnice stará [%.1f °C]" <temperature>         (dgTemperatures, dFF_BedO, dgTemperaturesIN) 
+  {mqtt="<[broker:/home/bedNew/esp03/tBedRoomOld:state:default]"}
+Number Corridor_temp              "Teplota chodba [%.1f °C]"        <temperature>         (dgTemperatures, dGF_Corridor, dgTemperaturesIN) 
+  {mqtt="<[broker:/home/bedNew/esp03/tCorridor:state:default]"}
+
+Number Hall_temp                  "Teplota hala [%.1f °C]"          <temperature>         (dgTemperatures, dGF_Hall, dgTemperaturesIN) 
+  {mqtt="<[broker:/home/bedNew/esp03/tHall:state:default]"}
+
+Number Bath_temp                  "Teplota koupelna [%.1f °C]"      <temperature>         (dgTemperatures, dGF_Bath, dgTemperaturesIN) 
+  {mqtt="<[broker:/home/bedNew/esp03/tBath:state:default]"}
+
+Number Work_temp                  "Teplota dílna [%.1f °C]"         <temperature>         (dgTemperatures, dGF_Work, dgTemperaturesIN) 
+  {mqtt="<[broker:/home/bedNew/esp03/tWorkRoom:state:default]"}
+
+Number Attic_temp                  "Teplota pod střechou [%.1f °C]" <temperature>         (dgTemperatures, dgRoof, dgTemperaturesIN) 
+  {mqtt="<[broker:/home/bedNew/esp03/tAttic:state:default]"}
+
+Number VersionSWTemperatures       "Verze SW teploty [%.2f]"    	 <keyring>       	  (dgTemperatures, dgTemperaturesIN, dgStatusyVerze,dgStatusy) 
+    {mqtt="<[broker:/home/bedNew/esp03/VersionSW:state:default]"}              
+Number HeartBeatTemperatures       "HB teploty [%.0f]"               <heart>              (dgTemperatures, dgTemperaturesIN, dgStatusyHB,dgStatusy) 
+    {mqtt="<[broker:/home/bedNew/esp03/HeartBeat:state:default]"}              
+DateTime LastUpdateTeploty         "Update teploty [%1$ta %1$td %1$tb %1$tY %1$tT]"   <clock>   (dgTemperatures, dgTemperaturesIN, dgStatusyLast,dgStatusy) 
+Switch dGTeploty_Restart           "Restart ESP"                     <socket>              (dgTemperaturesIN)
+    {mqtt=">[broker:/home/bedNew/esp03/com:command:on:ON],
+           >[broker:/home/bedNew/esp03/com:command:off:OFF],
+           <[broker:/home/bedNew/esp03/state:state:default]"}
+
+  
+//METEO
+Number Meteo_temp                  "Teplota meteo [%.1f °C]"          <temperature>               (dgTemperatures, dOutdoor_Meteo) 
+  {mqtt="<[broker:/home/Meteo/esp02/Temperature:state:default]"}
+Number Meteo_press                 "Tlak [%.1f °Pa]"                  <press>                     (dOutdoor_Meteo) 
+  {mqtt="<[broker:/home/Meteo/esp02/Press:state:default]"}
+Number Meteo_humidity              "Vlhkost [%.1f]"                   <press>                     (dOutdoor_Meteo) 
+  {mqtt="<[broker:/home/Meteo/esp02/Humidity:state:default]"}
+Number Meteo_dewPoint              "Rosný bod [%.1f °C]"              <press>                     (dOutdoor_Meteo) 
+  {mqtt="<[broker:/home/Meteo/esp02/DewPoint:state:default]"}
+Number Meteo_tempDHT               "Teplota DHT [%.1f °C]"            <temperature>               (dgTemperatures, dOutdoor_Meteo) 
+  {mqtt="<[broker:/home/Meteo/esp02/TempDHT:state:default]"}
+Number Meteo_temp085               "Teplota 085 [%.1f °C]"            <temperature>               (dgTemperatures, dOutdoor_Meteo) 
+  {mqtt="<[broker:/home/Meteo/esp02/Temp085:state:default]"}
+Number Meteo_windDirection         "Směr větru [%.1f °]"              <wind>               		  (dOutdoor_Meteo) 
+  {mqtt="<[broker:/home/Meteo/esp02/WindDir:state:default]"}
+Number Meteo_speed                 "Rychlost větru [%.1f m/s]"        <wind>               		  (dOutdoor_Meteo) 
+  {mqtt="<[broker:/home/Meteo/esp02/WindSpeed:state:default]"}
+Number Meteo_speedMax              "Rychlost větru nárazy [%.1f m/s]" <wind>                      (dOutdoor_Meteo) 
+  {mqtt="<[broker:/home/Meteo/esp02/WindSpeedMax:state:default]"}
+
+
+//SRAZKOMER
+Number PulseRain                  "Počet překlopení [%.0f]"              		                  (dOutdoor_Meteo) 
+    {mqtt="<[broker:/home/Srazkomer/esp05/Pulse:state:default]"}
+Number PulseRainOne               "Puls [%.0f]"              		             				  (invisible) 
+Number VersionSWSrazkomer         "Verze SW srážkoměr [%.2f]"    	    <keyring>       	      (dOutdoor_Meteo, dgStatusyVerze,dgStatusy) 
+    {mqtt="<[broker:/home/Srazkomer/esp05/VersionSW:state:default]"}              
+Number HeartBeatSrazkomer         "HB srážkoměr [%.0f]"               	<heart>                   (dOutdoor_Meteo, dgStatusyHB,dgStatusy) 
+    {mqtt="<[broker:/home/Srazkomer/esp05/HeartBeat:state:default]"}              
+DateTime LastUpdateSrazkomer      "Update srážkoměr [%1$ta %1$td %1$tb %1$tY %1$tT]"   <clock>    (dOutdoor_Meteo, dgStatusyLast,dgStatusy) 
+DateTime LastUpdatePulse          "Poslední překlopení [%1$ta %1$td %1$tb %1$tY %1$tT]"<clock>    (dOutdoor_Meteo) 
+Number rainLastHour               "Poslední hodina [%.1f mm]"        <humidity>            	  	  (dOutdoor_Meteo) 
+Number rainLastDay                "Poslední den [%.1f mm]"           <humidity>                   (dOutdoor_Meteo) 
+Number rainLastMonth              "Poslední měsíc [%.1f mm]"         <humidity>                   (dOutdoor_Meteo) 
+Number rainLastYear               "Poslední rok [%.1f mm]"           <humidity>                   (dOutdoor_Meteo) 
+Number rainHour               	  "Tato hodina [%.1f mm]"        	 <humidity>            	      (dOutdoor_Meteo) 
+Number rainDay                	  "Dnes [%.1f mm]"           		 <humidity>                   (dOutdoor_Meteo) 
+Number rainMonth                  "Tento měsíc [%.1f mm]"         	 <humidity>                   (dOutdoor_Meteo) 
+Number rainYear                   "Letos [%.1f mm]"           		 <humidity>                   (dOutdoor_Meteo) 
+Switch dGRain_Restart             "Restart ESP srážky"               <socket>      				  (dOutdoor_Meteo)
+    {mqtt=">[broker:/home/Srazkomer/esp05/com:command:on:ON],
+           >[broker:/home/Srazkomer/esp05/com:command:off:OFF],
+           <[broker:/home/Srazkomer/esp05/state:state:default]"}
+
+
+/* GREEN HOUSE*/
+Number Green_temp                  "Teplota skleník [%.1f °C]"  <temperature>             		  (gInitializeZero,dgTemperatures, dOutdoor_Green) 
+    {mqtt="<[broker:/home/sklenik/esp10/temperature:state:default]"}
+Number Green_humidity              "Vlhkost [%.1f]"     		<humidity>                          (dOutdoor_Green) 
+    {mqtt="<[broker:/home/sklenik/esp10/humidity:state:default]"}
+Number Green_voltage               "Baterie [%.2f V]"     		<battery>                    	    (dOutdoor_Green) 
+    {mqtt="<[broker:/home/sklenik/esp10/voltage:state:default]"}
+Number Green_Boot_time              "Boot time [%.2f sec]"     <power>                    	          (dOutdoor_Green) 
+    {mqtt="<[broker:/home/sklenik/esp10/bootTime:state:default]"}
+DateTime LastUpdateSklenik         "Update sklenik [%1$ta %1$td %1$tb %1$tY %1$tT]"   <clock>   (dOutdoor_Green, dgStatusyLast,dgStatusy) 
+Number VersionSWSklenik            "Verze SW skleník [%.2f]"    <keyring>                       (dOutdoor_Green, dgStatusyVerze,dgStatusy) 
+    {mqtt="<[broker:/home/sklenik/esp10/VersionSW:state:default]"}
+
+/* SOLAR */
+Number dGSolar_TempIN                        "Solár vstupní teplota [%.1f °C]"                   <temperature>                           (dgTemperatures,dgSolar,dgRoof)
+  {mqtt="<[broker:/home/Corridor/esp07/tIN:state:default]"}
+  
+Number dGSolar_TempOUT                       "Solár  výstupní teplota [%.1f °C]"                 <temperature>                           (dgTemperatures,dgSolar,dgRoof)
+  {mqtt="<[broker:/home/Corridor/esp07/tOUT:state:default]"}
+Number dGSolar_TempPump                      "Solár teplota čerpadlo [%.1f °C]"                  <temperature>                           (dgTemperatures,dgSolar,dGF_Corridor)
+  {mqtt="<[broker:/home/Corridor/esp07/tRoom:state:default]"}
+Number dGSolar_TempBojler                    "Teplota bojler [%.1f °C]"                          <temperature>                           (dgTemperatures,dgSolar,dGF_Work,dgCentralHeating)
+  {mqtt="<[broker:/home/Corridor/esp07/tBojler:state:default]"}
+Switch dGSolar_Pump                          "Solár čerpadlo"                                                                            (dgSolar,dGF_Corridor)
+  {mqtt=">[broker:/home/Corridor/esp07/sPumpSolar:command:on:ON],>[broker:/home/Corridor/esp07/sPumpSolar:command:off:OFF],<[broker:/home/Corridor/esp07/sPumpSolar:state:default]"}
+DateTime dGSolar_firstONDay         		 "Start [%1$ta %1$td %1$tb %1$tY %1$tT]"   			 <clock>   								 (dgSolar,dGF_Corridor) 
+DateTime dGSolar_lastOFFDay         		 "Stop  [%1$ta %1$td %1$tb %1$tY %1$tT]"   			 <clock>   								 (dgSolar,dGF_Corridor) 
+Number dGSolar_MinutesDay                 	 "Běží dnes [%.2f min]"                           	 <power>                                 (dgSolar)
+Number dGSolar_MinutesTotal                  "Běží celkem [%.2f min]"                          	 <power>                                 (dgSolar)
+Number dGSolar_VykonSkutecny                 "Skutečný výkon [%.0f W]"                           <power>                                 (dgSolar)
+Number dGSolar_Vykon                         "Teoretický výkon [%.0f W]"                         <power>                                 (dgSolar)
+Number dGSolar_EnergyTotal                   "Energie celkem [%.4f kWh]"                         <power>                                 (dgSolar)
+  {mqtt="<[broker:/home/Corridor/esp07/energyTotal:state:default]"}
+Number dGSolar_EnergyDay                     "Energie den [%.4f kWh]"                         	 <power>                                 (dgSolar)
+  {mqtt="<[broker:/home/Corridor/esp07/energyDay:state:default]"}
+Number dGSolar_EnergyMonth                   "Energie měsíc [%.4f kWh]"                          <power>                                 (dgSolar)
+  {mqtt="<[broker:/home/Corridor/esp07/energyMonth:state:default]"}
+Number dGSolar_EnergyYear                    "Energie rok [%.4f kWh]"                         	 <power>                                 (dgSolar)
+  {mqtt="<[broker:/home/Corridor/esp07/energyYear:state:default]"}
+String dGSolar_Data                          "Data"                         	                   <power>                                 (dgSolar)
+  {mqtt="<[broker:/home/Corridor/esp07/data:state:default]"}
+Switch dGSolar_Restart                       "Restart ESP"                         	             <socket>                                 (dgSolar)
+    {mqtt=">[broker:/home/Corridor/esp07/com:command:on:ON],
+           >[broker:/home/Corridor/esp07/com:command:off:OFF],
+           <[broker:/home/Corridor/esp07/state:state:default]"}
+
+
+
+
+/* CENTRAL HEATING */
+Number dGCentralHeating_TempIN               "Kamna vstupní teplota [%.1f °C]"                     <temperature>                (dgTemperatures,dgCentralHeating,dGF_Living,gInitializeZero)
+  {mqtt="<[broker:/home/Corridor/esp06/tINKamna:state:default]"}
+Number dGCentralHeating_TempOUT              "Kamna výstupní teplota [%.1f °C]"                    <temperature>                (dgTemperatures,dgCentralHeating,dGF_Living,gInitializeZero)
+  {mqtt="<[broker:/home/Corridor/esp06/tOUTKamna:state:default]"}
+Number dGCentralHeating_TempPump             "Central teplota čerpadlo [%.1f °C]"                  <temperature>                (dgTemperatures,dgCentralHeating,dGF_Corridor,gInitializeZero)
+  {mqtt="<[broker:/home/Corridor/esp06/tPumpKamna:state:default]"}
+Switch dGCentralHeating_Pump                 "Topení čerpadlo"                                                                  (dgCentralHeating,dGF_Corridor,gInitializeZero)
+  {mqtt=">[broker:/home/Corridor/esp06/sPumpKamna:command:on:ON],
+         >[broker:/home/Corridor/esp06/sPumpKamna:command:off:OFF],
+         <[broker:/home/Corridor/esp06/sPumpKamna:state:default]"}
+Number dGCentralHeating_TempRad1IN           "Radiátor obývák vstup [%.1f °C]"                     <temperature>                (dgTemperatures,dgCentralHeating,dGF_Living)
+  {mqtt="<[broker:/home/Corridor/esp06/t9:state:default]"}
+Number dGCentralHeating_TempRad1OUT          "Radiátor obývák výstup [%.1f °C]"                    <temperature>                (dgTemperatures,dgCentralHeating,dGF_Living)
+  {mqtt="<[broker:/home/Corridor/esp06/t2:state:default]"}
+Number dGCentralHeating_TempRad2IN           "Radiátor ložnice nová vstup [%.1f °C]"               <temperature>                (dgTemperatures,dgCentralHeating,dFF_BedN)
+  {mqtt="<[broker:/home/Corridor/esp06/t3:state:default]"}
+Number dGCentralHeating_TempRad2OUT          "Radiátor ložnice nová výstup [%.1f °C]"              <temperature>                (dgTemperatures,dgCentralHeating,dFF_BedN)
+  {mqtt="<[broker:/home/Corridor/esp06/t4:state:default]"}
+Number dGCentralHeating_TempRad3IN           "Radiátor ložnice stará vstup [%.1f °C]"              <temperature>                (dgTemperatures,dgCentralHeating,dFF_BedO)
+  {mqtt="<[broker:/home/Corridor/esp06/t5:state:default]"}
+Number dGCentralHeating_TempRad3OUT          "Radiátor ložnice stará výstup [%.1f °C]"             <temperature>                (dgTemperatures,dgCentralHeating,dFF_BedO)
+  {mqtt="<[broker:/home/Corridor/esp06/t6:state:default]"}
+Number dGCentralHeating_TempRad4IN           "Radiátor dílna vstup [%.1f °C]"                      <temperature>                (dgTemperatures,dgCentralHeating,dGF_Work)
+  {mqtt="<[broker:/home/Corridor/esp06/t7:state:default]"}
+Number dGCentralHeating_TempRad4OUT          "Radiátor dílna výstup [%.1f °C]"                     <temperature>                (dgTemperatures,dgCentralHeating,dGF_Work)
+  {mqtt="<[broker:/home/Corridor/esp06/t8:state:default]"}
+Number dGCentralHeating_TempRad5IN           "Radiátor hala vstup [%.1f °C]"                       <temperature>                (dgTemperatures,dgCentralHeating,dGF_Hall)
+  {mqtt="<[broker:/home/Corridor/esp06/t1:state:default]"}
+Number dGCentralHeating_TempRad5OUT          "Radiátor hala výstup [%.1f °C]"                      <temperature>                (dgTemperatures,dgCentralHeating,dGF_Hall)
+  {mqtt="<[broker:/home/Corridor/esp06/t10:state:default]"}
+Number dGCentralHeating_TempRad6IN           "Radiátor koupelna vstup [%.1f °C]"                   <temperature>                (dgTemperatures,dgCentralHeating,dGF_Bath)
+  {mqtt="<[broker:/home/Corridor/esp06/t11:state:default]"}
+Number dGCentralHeating_TempRad6OUT          "Radiátor koupelna výstup [%.1f °C]"                  <temperature>                (dgTemperatures,dgCentralHeating,dGF_Bath)
+  {mqtt="<[broker:/home/Corridor/esp06/t12:state:default]"}
+Number VersionSWCentralHeating               "Verze SW Central [%.2f]"                             <keyring>                    (dgCentralHeating,dgStatusy,dgStatusyVerze) 
+    {mqtt="<[broker:/home/Corridor/esp06/VersionSWCentral:state:default]"}              
+Number HeartBeatCentralHeating     			 "HB topení [%.0f]"                       			           <heart>        				      (dgCentralHeating, dgStatusyHB,dgStatusy) 
+    {mqtt="<[broker:/home/Corridor/esp06/HeartBeat:state:default]"}              
+DateTime LastUpdateCentralHeating         	 "Update topení [%1$ta %1$td %1$tb %1$tY %1$tT]"       <clock>   					          (dgCentralHeating, dgStatusyLast,dgStatusy) 
+Switch dGCentralHeating_Restart              "Restart ESP"                         	               <socket>                      (dgCentralHeating)
+    {mqtt=">[broker:/home/Corridor/esp06/com:command:on:ON],
+           >[broker:/home/Corridor/esp06/com:command:off:OFF],
+           <[broker:/home/Corridor/esp06/state:state:default]"}
+
+  
+// shows the sunrise
+DateTime Sunrise_Time         "Východ [%1$tH:%1$tM]"                                <sun> (dgSolarAstro) {astro="planet=sun, type=rise, property=start"} 
+DateTime Sunset_Time          "Západ [%1$tH:%1$tM]"                                 <sun> (dgSolarAstro) {astro="planet=sun, type=set, property=end"} 
+Number DayLight               "Délka dne [%.0f min]"                                <sun> (dgSolarAstro) {astro="planet=sun, type=daylight, property=duration"} 
+Number SunPositionAzimuth     "Azimut [%.2f °]"                                     <sun> (dgSolarAstro) {astro="planet=sun, type=position, property=azimuth"} 
+Number SunPositionElevation   "Elevace [%.2f °]"                                    <sun> (dgSolarAstro) {astro="planet=sun, type=position, property=elevation"} 
+
+// eclipse
+DateTime Sun_Eclipse_Total    "Sun total eclipse [%1$td.%1$tm.%1$tY %1$tH:%1$tM]"   <sun> (dgSolarAstro) {astro="planet=sun, type=eclipse, property=total"}
+DateTime Sun_Eclipse_Partial  "Sun partial eclipse [%1$td.%1$tm.%1$tY %1$tH:%1$tM]" <sun> (dgSolarAstro) {astro="planet=sun, type=eclipse, property=partial"}
+DateTime Sun_Eclipse_Ring     "Sun ring eclipse [%1$td.%1$tm.%1$tY %1$tH:%1$tM]"    <sun> (dgSolarAstro) {astro="planet=sun, type=eclipse, property=ring"}
+
+Number HeartBeatSolar                        "HB solar [%.0f]"                                 <heart>                                 (dgSolar, dgStatusyHB,dgStatusy) 
+    {mqtt="<[broker:/home/Corridor/esp07/HeartBeat:state:default]"}              
+DateTime LastUpdateSolar                     "Update solar [%1$ta %1$td %1$tb %1$tY %1$tT]"   <clock>                           (dgSolar, dgStatusyLast,dgStatusy) 
+Number VersionSWSolar                        "Verze SW Solar [%.2f]"                             <keyring>                               (dgSolar,dgStatusy,dgStatusyVerze) 
+    {mqtt="<[broker:/home/Corridor/esp07/VersionSWSolar:state:default]"}              
+Number VersionSWHeating                      "Verze SW Heating [%.2f]"                           <keyring>                               (dgCentralHeating) 
+    {mqtt="<[broker:/home/Corridor/esp06/VersionSWHeating:state:default]"}              
+
+
+/* NTP binding demo item */
+DateTime    Datum      "Datumy [%1$tA, %1$td.%1$tm.%1$tY]"  <calendar>  { ntp="Europe/Prague:cs_CZ" }
+/*
+Group Weather_Chart_Stahlavice                                                            (WeatherYahoo)
+Number Weather_Temperature_Stahlavice       "Venkovní teplota Šťáhlavice [%.1f °C]"    <temperature> (Weather_Chart_Stahlavice) 
+  { http="<[http://weather.yahooapis.com/forecastrss?w=798588&u=c:60000:XSLT(yahoo_weather_temperature.xsl)]" }
+Number Weather_Humidity_Stahlavice          "Vlhkost vzduchu  [%.1f %%]"    <temperature> (Weather_Stahlavice)       
+  { http="<[http://weather.yahooapis.com/forecastrss?w=798588&u=c:60000:XSLT(yahoo_weather_humidity.xsl)]" }
+Number Weather_Pressure_Stahlavice          "Tlak vzduchu  [%.0f hPa]"             <temperature> (Weather_Stahlavice)       
+  { http="<[http://weather.yahooapis.com/forecastrss?w=796166&u=c:60000:XSLT(yahoo_weather_pressure.xsl)]" }
+Number Weather_Humidex_Stahlavice           "Humidex [SCALE(humidex_cz.scale):%s]"           (Weather_Stahlavice)
+Number Weather_Temp_Max_Stahlavice          "Dnešní maximum [%.1f °C]"      <temperature> (Weather_Chart_Stahlavice)
+Number Weather_Temp_Min_Stahlavice          "Dnešní minimum [%.1f °C]"      <temperature> (Weather_Chart_Stahlavice)
+Number Weather_Chart_Period_Stahlavice      "Perioda"
+DateTime Weather_LastUpdate_Stahlavice      "Poslední update [%1$ta %1$tR]"  <clock>
+
+Group Weather_Chart_Plzen                                                                       (WeatherYahoo)
+Number Weather_Temperature_Plzen            "Venkovní teplota Plzeň [%.1f °C]"    <temperature> (Weather_Chart_Plzen) 
+  { http="<[http://weather.yahooapis.com/forecastrss?w=796166&u=c:60000:XSLT(yahoo_weather_temperature.xsl)]" }
+Number Weather_Humidity_Plzen               "Vlhkost vzduchu  [%.1f %%]"          <temperature> (Weather_Plzen)       
+  { http="<[http://weather.yahooapis.com/forecastrss?w=796166&u=c:60000:XSLT(yahoo_weather_humidity.xsl)]" }
+Number Weather_Pressure_Plzen               "Tlak vzduchu  [%.0f hPa]"             <temperature> (Weather_Plzen)       
+  { http="<[http://weather.yahooapis.com/forecastrss?w=796166&u=c:60000:XSLT(yahoo_weather_pressure.xsl)]" }
+Number Weather_Humidex_Plzen                "Humidex [SCALE(humidex_cz.scale):%s]"                 (Weather_Plzen)
+Number Weather_Temp_Max_Plzen               "Dnešní maximum [%.1f °C]"            <temperature> (Weather_Chart_Plzen)
+Number Weather_Temp_Min_Plzen               "Dnešní minimum [%.1f °C]"            <temperature> (Weather_Chart_Plzen)
+Number Weather_Chart_Period_Plzen           "Perioda"
+DateTime Weather_LastUpdate_Plzen           "Poslední update [%1$ta %1$tR]"       <clock>
+*/
