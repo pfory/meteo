@@ -76,12 +76,12 @@ XivelyClient xivelyclient(client);
 #ifdef openhab
 #include <PubSubClient.h>
 //IPAddress serverPubSub(88, 146, 202, 186);
-IPAddress serverPubSub(88, 146, 202, 186);
+IPAddress serverPubSub(192, 168, 1, 56);
 // Callback function header
 void callback(char* topic, byte* payload, unsigned int length);
 
 EthernetClient ethClient;
-PubSubClient clientPubSub(serverPubSub, 31883, callback, ethClient);
+PubSubClient clientPubSub(serverPubSub, 1883, callback, ethClient);
 char charBuf[15];
 
 // Callback function
