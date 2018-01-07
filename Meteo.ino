@@ -74,7 +74,7 @@ Adafruit_MQTT_Publish _temperatureDHT          = Adafruit_MQTT_Publish(&mqtt, "/
 
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#define ONE_WIRE_BUS A0
+#define ONE_WIRE_BUS 10
 OneWire onewire(ONE_WIRE_BUS); // pin for onewire DALLAS bus
 DallasTemperature dsSensors(&onewire);
 DeviceAddress tempDeviceAddress;
