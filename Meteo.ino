@@ -5,6 +5,18 @@
 #include <ArduinoOTA.h>
 
 #define verbose
+#ifdef verbose
+ #define DEBUG_PRINT(x)     Serial.print (x)
+ #define DEBUG_PRINTDEC(x)     Serial.print (x, DEC)
+ #define DEBUG_PRINTLN(x)  Serial.println (x)
+ #define DEBUG_PRINTF(x, y)  Serial.printf (x, y)
+ #define PORTSPEED 115200
+#else
+ #define DEBUG_PRINT(x)
+ #define DEBUG_PRINTDEC(x)
+ #define DEBUG_PRINTLN(x)
+ #define DEBUG_PRINTF(x, y)
+#endif 
 
 #define WIFI
 #ifdef WIFI
@@ -35,9 +47,9 @@
   IPAddress ip(192,168,1,103);
   EthernetServer server(80);
   #define watchdog //enable this only on board with UNO bootloader
-  #ifdef watchdog
+#ifdef watchdog
   #include <avr/wdt.h>
-  #endif
+#endif
 #endif 
 
 #define AIO_SERVER      "192.168.1.56"
@@ -82,10 +94,9 @@ bool                  BMP085Present       = false;
 
 
 byte status=0;
-float versionSW=1.4;
-char versionSWString[] = "METEO Simple v"; //SW name & version
+float versionSW=1.5;
+char versionSWString[] = "METEO v"; //SW name & version
 
-#define verbose
 /*
 DewPoint,2016-07-20T05:30:39.196504Z,13.6
 Press,2018-01-03T18:56:46.618138Z,99717.00
@@ -95,15 +106,17 @@ WindSpeed,2016-07-20T05:30:26.842469Z,2.2
 */
 void handleRoot() {
 	char temp[600];
-  // Serial.print(year());
-  // Serial.print(month());
-  // Serial.print(day());
-  // Serial.print(hour());
-  // Serial.print(minute());
-  // Serial.print(second());
+  // DEBUG_PRINT(year());
+  // DEBUG_PRINT(month());
+  // DEBUG_PRINT(day());
+  // DEBUG_PRINT(hour());
+  // DEBUG_PRINT(minute());
+  // DEBUG_PRINT(second());
+  prinSystemTime();
+  DEBUG_PRINTLN(" Client request");
+  digitalWrite(LED_BUILTIN, LOW);
 
-
-	snprintf ( temp, 200,
+	snprintf ( temp, 400,
       "<html>\
         <head>\
           <meta charset='UTF-8'>\
@@ -125,19 +138,24 @@ void handleRoot() {
       (int)dewPoint/TEMPERATURE_DIVIDOR, (abs((int)dewPoint))%TEMPERATURE_DIVIDOR
 	);
 	server.send ( 200, "text/html", temp );
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 
 void setup() {
 #ifdef verbose
-  Serial.begin(115200);
+  Serial.begin(PORTSPEED);
+  Serial.print(versionSWString);
+  Serial.println(versionSW);
 #endif
 #ifdef WIFI
+	pinMode (LED_BUILTIN, OUTPUT );
+  digitalWrite(LED_BUILTIN, LOW );
   //WiFi.config(ip); 
   wifiManager.setSTAStaticIPConfig(_ip, _gw, _sn);
   //WiFi.begin(ssid, password);
   if (!wifiManager.autoConnect("AutoConnectAP", "password")) {
-    Serial.println("failed to connect, we should reset as see if it connects");
+    DEBUG_PRINTLN("failed to connect, we should reset as see if it connects");
     delay(3000);
     ESP.reset();
     delay(5000);
@@ -146,36 +164,28 @@ void setup() {
 	// Wait for connection
 	while (WiFi.status() != WL_CONNECTED) {
 		delay(500);
-#ifdef verbose    
-		Serial.print(".");
-#endif
+		DEBUG_PRINT(".");
 	}
-#ifdef verbose
-	Serial.println("");
-	// Serial.print("Connected to ");
-	// Serial.println(ssid);
-	// Serial.print("IP address: ");
-	Serial.println(WiFi.localIP());
-#endif
+	DEBUG_PRINTLN("");
+	// DEBUG_PRINT("Connected to ");
+	// DEBUG_PRINTLN(ssid);
+	// DEBUG_PRINT("IP address: ");
+	//DEBUG_PRINTLN(WiFi.localIP());
 #else
   Ethernet.begin(mac, ip);
-  Serial.println(Ethernet.localIP());
+  DEBUG_PRINTLN(Ethernet.localIP());
   server.begin();
-#ifdef verbose
-  Serial.print("Mask:");
-  Serial.println(Ethernet.subnetMask());
-  Serial.print("Gateway:");
-  Serial.println(Ethernet.gatewayIP());
-  Serial.print("DNS:");
-  Serial.println(Ethernet.dnsServerIP());
-  Serial.println();
-#endif
+  DEBUG_PRINT("Mask:");
+  DEBUG_PRINTLN(Ethernet.subnetMask());
+  DEBUG_PRINT("Gateway:");
+  DEBUG_PRINTLN(Ethernet.gatewayIP());
+  DEBUG_PRINT("DNS:");
+  DEBUG_PRINTLN(Ethernet.dnsServerIP());
+  DEBUG_PRINTLN();
 #endif
   Wire.begin();
   
-#ifdef verbose
-  Serial.print("Probe SI7021: ");
-#endif
+  DEBUG_PRINT("Probe SI7021: ");
 #ifdef WIFI  
   if (si7021.begin(SDAPIN, SCLPIN)) {
     SI7021Present = true;
@@ -186,69 +196,54 @@ void setup() {
   }
 #endif
 
-#ifdef verbose
   if (SI7021Present == true) {
-    Serial.println("Sensor found.");
+    DEBUG_PRINTLN("Sensor found.");
   } else {
-    Serial.println("Sensor missing!!!!");
+    DEBUG_PRINTLN("Sensor missing!!!!");
   }
-#endif
 
-#ifdef verbose
-  Serial.print("Probe DS18B20: ");
-#endif
+  DEBUG_PRINT("Probe DS18B20: ");
   dsSensors.begin(); 
   if (dsSensors.getDeviceCount()>0) {
-#ifdef verbose
-    Serial.println("Sensor found.");
-#endif
+    DEBUG_PRINTLN("Sensor found.");
     DS18B20Present = true;
     dsSensors.setResolution(12);
     dsSensors.setWaitForConversion(false);
   } else {
-#ifdef verbose
-    Serial.println("Sensor missing!!!!");
-#endif
+    DEBUG_PRINTLN("Sensor missing!!!!");
   }
 
-#ifdef verbose
-  Serial.print("Probe BMP085: ");
-#endif
+  DEBUG_PRINT("Probe BMP085: ");
   if (bmp.begin()==1) {
     BMP085Present = true;
-#ifdef verbose
-    Serial.println("Sensor found.");
-#endif
+    DEBUG_PRINTLN("Sensor found.");
     } else {
-#ifdef verbose
-    Serial.println("Sensor missing!!!");
-#endif
+    DEBUG_PRINTLN("Sensor missing!!!");
   }
   
+#ifdef WIFI  
   server.on ( "/", handleRoot );
   server.begin();
-  Serial.println ( "HTTP server started" );
+  DEBUG_PRINTLN ( "HTTP server started!!" );
   
+  DEBUG_PRINTLN("Setup TIME");
   Udp.begin(localPort);
-#ifdef verbose  
-  Serial.print("Local port: ");
-  Serial.println(Udp.localPort());
-  Serial.println("waiting for sync");
-#endif
+  DEBUG_PRINT("Local port: ");
+  DEBUG_PRINTLN(Udp.localPort());
+  DEBUG_PRINTLN("waiting for sync");
   setSyncProvider(getNtpTime);
   setSyncInterval(300);
   
-  // Serial.print("Time Status after setSyncProvider:");
-  // Serial.println(timeStatus());
+  // DEBUG_PRINT("Time Status after setSyncProvider:");
+  // DEBUG_PRINTLN(timeStatus());
 
   if (timeStatus()== timeNotSet) {
     ESP.reset();
   }
-
-  
+ 
   //while(timeStatus()== timeNotSet)
      ; // wait until the time is set by the sync provider
-  digitalClockDisplay();
+  prinSystemTime();
   
   //OTA
   // Port defaults to 8266
@@ -272,28 +267,29 @@ void setup() {
       type = "filesystem";
 
     // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-    Serial.println("Start updating " + type);
+    DEBUG_PRINTLN("Start updating " + type);
   });
   ArduinoOTA.onEnd([]() {
-    Serial.println("\nEnd");
+   DEBUG_PRINTLN("\nEnd");
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    DEBUG_PRINTF("Progress: %u%%\r", (progress / (total / 100)));
   });
   ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    DEBUG_PRINTF("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) DEBUG_PRINTLN("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) DEBUG_PRINTLN("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) DEBUG_PRINTLN("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) DEBUG_PRINTLN("Receive Failed");
+    else if (error == OTA_END_ERROR) DEBUG_PRINTLN("End Failed");
   });
   ArduinoOTA.begin();
-  Serial.println("Ready");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-  
-  
+
+  DEBUG_PRINTLN("Ready");
+  //DEBUG_PRINT("IP address: ");
+  //DEBUG_PRINTLN(WiFi.localIP());
+  digitalWrite(LED_BUILTIN, HIGH);
+#endif
 }
 
 void loop() {
@@ -312,12 +308,10 @@ void loop() {
       if (dsSensors.getCheckForConversion()==true) {
         temperature = dsSensors.getTempCByIndex(0) * TEMPERATURE_DIVIDOR;
       }
-#ifdef verbose
-      Serial.println("-------------");
-      Serial.print("Temperature DS18B20: ");
-      Serial.print(temperature); 
-      Serial.println(" *C");
-#endif
+      DEBUG_PRINTLN("-------------");
+      DEBUG_PRINT("Temperature DS18B20: ");
+      DEBUG_PRINT(temperature); 
+      DEBUG_PRINTLN(" *C");
     } else {
       temperature = -22.2 * TEMPERATURE_DIVIDOR; //dummy
     }
@@ -330,32 +324,26 @@ void loop() {
       if (humidity>100) {
         humidity = 100;
       }
-#ifdef verbose
-      Serial.print("Temperature SI7021: ");
-      Serial.print(tempSI7021);
-      Serial.println(" *C");
-      Serial.print("Humidity SI7021: ");
-      Serial.print(humidity);
-      Serial.println(" %Rh");
-#endif
+      DEBUG_PRINT("Temperature SI7021: ");
+      DEBUG_PRINT(tempSI7021);
+      DEBUG_PRINTLN(" *C");
+      DEBUG_PRINT("Humidity SI7021: ");
+      DEBUG_PRINT(humidity);
+      DEBUG_PRINTLN(" %Rh");
     } else {
       humidity = 55.5;    //dummy
       tempSI7021 = 33.3;  //dummy
     }
     
     if (BMP085Present) {
-#ifdef verbose
-      Serial.print("Temperature BMP085: ");
-#endif
+      DEBUG_PRINT("Temperature BMP085: ");
       temperature085 = bmp.readTemperature();
       pressure = bmp.readSealevelPressure(high_above_sea);
-#ifdef verbose
-      Serial.print(temperature085);
-      Serial.println(" *C");
-      Serial.print("Pressure: ");
-      Serial.print(pressure);
-      Serial.println(" Pa");
-#endif    
+      DEBUG_PRINT(temperature085);
+      DEBUG_PRINTLN(" *C");
+      DEBUG_PRINT("Pressure: ");
+      DEBUG_PRINT(pressure);
+      DEBUG_PRINTLN(" Pa");
     } else {
       temperature085 = 77.7;  //dummy
       pressure = 123456;     //Pa - dummy
@@ -377,33 +365,33 @@ void loop() {
 }
 
 void sendDataHA() {
-  Serial.println("I am sending data from Meteo unit to HomeAssistant");
-  
+  prinSystemTime();
+  DEBUG_PRINTLN(" I am sending data from Meteo unit to HomeAssistant");
   MQTT_connect();
   if (! _temperature.publish(temperature/TEMPERATURE_DIVIDOR)) {
-    Serial.println("Temperature failed");
+    DEBUG_PRINTLN("Temperature failed");
   } else {
-    Serial.println("Temperature OK!");
+    DEBUG_PRINTLN("Temperature OK!");
   }  
   if (! _pressure.publish(pressure)) {
-    Serial.println("Pressure failed");
+    DEBUG_PRINTLN("Pressure failed");
   } else {
-    Serial.println("Pressure OK!");
+    DEBUG_PRINTLN("Pressure OK!");
   }  
   if (! _temperature085.publish(temperature085)) {
-    Serial.println("Temperature085 failed");
+    DEBUG_PRINTLN("Temperature085 failed");
   } else {
-    Serial.println("Temperature085 OK!");
+    DEBUG_PRINTLN("Temperature085 OK!");
   }  
   if (! _humidity.publish(humidity)) {
-    Serial.println("Humidity failed");
+    DEBUG_PRINTLN("Humidity failed");
   } else {
-    Serial.println("Humidity OK!");
+    DEBUG_PRINTLN("Humidity OK!");
   }  
   // if (! _temperatureDHT.publish(temperatureDHT)) {
-    // Serial.println("failed");
+    // DEBUG_PRINTLN("failed");
   // } else {
-    // Serial.println("OK!");
+    // DEBUG_PRINTLN("OK!");
   // }  
 }
 
@@ -416,12 +404,12 @@ void MQTT_connect() {
     return;
   }
 
-  Serial.print("Connecting to MQTT... ");
+  DEBUG_PRINT("Connecting to MQTT... ");
 
 uint8_t retries = 3;
 while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-     Serial.println(mqtt.connectErrorString(ret));
-     Serial.println("Retrying MQTT connection in 5 seconds...");
+     DEBUG_PRINTLN(mqtt.connectErrorString(ret));
+     DEBUG_PRINTLN("Retrying MQTT connection in 5 seconds...");
      mqtt.disconnect();
      delay(5000);  // wait 5 seconds
      retries--;
@@ -430,13 +418,11 @@ while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
        while (1);
      }
 }
-  Serial.println("MQTT Connected!");
+  DEBUG_PRINTLN("MQTT Connected!");
 }
 
 void generateHTML() {
-#ifdef verbose
-  Serial.println("new client");
-#endif  
+  DEBUG_PRINTLN("new client");
   // an http request ends with a blank line
   boolean currentLineIsBlank = true;
   while (client.connected()) {
@@ -480,9 +466,7 @@ void generateHTML() {
   delay(1);
   // close the connection:
   client.stop();
-#ifdef verbose
-  Serial.println("client disconnected");
-#endif
+  DEBUG_PRINTLN("client disconnected");
 }
 
 /*-------- NTP code ----------*/
@@ -496,18 +480,18 @@ time_t getNtpTime()
   IPAddress ntpServerIP = IPAddress(195, 113, 144, 201);
 
   while (Udp.parsePacket() > 0) ; // discard any previously received packets
-  Serial.println("Transmit NTP Request");
+  DEBUG_PRINTLN("Transmit NTP Request");
   // get a random server from the pool
   //WiFi.hostByName(ntpServerName, ntpServerIP);
-  Serial.print(ntpServerName);
-  Serial.print(": ");
-  Serial.println(ntpServerIP);
+  DEBUG_PRINT(ntpServerName);
+  DEBUG_PRINT(": ");
+  DEBUG_PRINTLN(ntpServerIP);
   sendNTPpacket(ntpServerIP);
   uint32_t beginWait = millis();
   while (millis() - beginWait < 1500) {
     int size = Udp.parsePacket();
     if (size >= NTP_PACKET_SIZE) {
-      Serial.println("Receive NTP Response");
+      DEBUG_PRINTLN("Receive NTP Response");
       Udp.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
       unsigned long secsSince1900;
       // convert four bytes starting at location 40 to a long integer
@@ -518,7 +502,7 @@ time_t getNtpTime()
       return secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;
     }
   }
-  Serial.println("No NTP Response :-(");
+  DEBUG_PRINTLN("No NTP Response :-(");
   return 0; // return 0 if unable to get the time
 }
 
@@ -545,32 +529,26 @@ void sendNTPpacket(IPAddress &address)
   Udp.endPacket();
 }
 
-void digitalClockDisplay(){
-#ifdef verbose
-  // digital clock display of the time
-  Serial.print(day());
-  Serial.print(".");
-  Serial.print(month());
-  Serial.print(".");
-  Serial.print(year());
-  Serial.print(" ");
-  Serial.print(hour());
+void prinSystemTime(){
+  DEBUG_PRINT(day());
+  DEBUG_PRINT(".");
+  DEBUG_PRINT(month());
+  DEBUG_PRINT(".");
+  DEBUG_PRINT(year());
+  DEBUG_PRINT(" ");
+  DEBUG_PRINT(hour());
   printDigits(minute());
   printDigits(second());
-  Serial.println(" ");
-#endif
 }
 
-#ifdef verbose
 void printDigits(int digits){
   // utility function for digital clock display: prints preceding
   // colon and leading 0
-  Serial.print(":");
+  DEBUG_PRINT(":");
   if(digits < 10)
-    Serial.print('0');
-  Serial.print(digits);
+    DEBUG_PRINT('0');
+  DEBUG_PRINT(digits);
 }
-#endif
 
 float calcDewPoint (int humidity, int temperature)  
 {  
