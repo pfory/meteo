@@ -6,10 +6,10 @@
 
 #define verbose
 #ifdef verbose
- #define DEBUG_PRINT(x)     Serial.print (x)
- #define DEBUG_PRINTDEC(x)     Serial.print (x, DEC)
- #define DEBUG_PRINTLN(x)  Serial.println (x)
- #define DEBUG_PRINTF(x, y)  Serial.printf (x, y)
+ #define DEBUG_PRINT(x)         Serial.print (x)
+ #define DEBUG_PRINTDEC(x)      Serial.print (x, DEC)
+ #define DEBUG_PRINTLN(x)       Serial.println (x)
+ #define DEBUG_PRINTF(x, y)     Serial.printf (x, y)
  #define PORTSPEED 115200
 #else
  #define DEBUG_PRINT(x)
@@ -18,8 +18,8 @@
  #define DEBUG_PRINTF(x, y)
 #endif 
 
-#define WIFI
-#ifdef WIFI
+//#define ESP8266
+#ifdef ESP8266
   #include <WiFiClient.h>
   #include <ESP8266WiFi.h>
   #include <WiFiManager.h> 
@@ -28,9 +28,9 @@
   WiFiClient client;
   #define SDAPIN 12 // D6 - GPI12 on ESP-201 module
   #define SCLPIN 14 // D5 - GPI14 on ESP-201 module
-  IPAddress _ip = IPAddress(192, 168, 1, 103);
-  IPAddress _gw = IPAddress(192, 168, 1, 1);
-  IPAddress _sn = IPAddress(255, 255, 255, 0);
+  IPAddress _ip           = IPAddress(192, 168, 1, 103);
+  IPAddress _gw           = IPAddress(192, 168, 1, 1);
+  IPAddress _sn           = IPAddress(255, 255, 255, 0);
   ESP8266WebServer server(80);
   #define TEMPERATURE_DIVIDOR 100
   static const char ntpServerName[] = "tik.cesnet.cz";
@@ -87,7 +87,7 @@ bool                  DS18B20Present      = false;
 
 #include <Adafruit_BMP085.h> 
 Adafruit_BMP085 bmp;
-float                 high_above_sea      =369.0;
+float                 high_above_sea      = 369.0;
 float                 pressure            = 0;
 float                 temperature085      = 0;
 bool                  BMP085Present       = false;
@@ -148,7 +148,7 @@ void setup() {
   Serial.print(versionSWString);
   Serial.println(versionSW);
 #endif
-#ifdef WIFI
+#ifdef ESP8266
 	pinMode (LED_BUILTIN, OUTPUT );
   digitalWrite(LED_BUILTIN, LOW );
   //WiFi.config(ip); 
@@ -186,7 +186,7 @@ void setup() {
   Wire.begin();
   
   DEBUG_PRINT("Probe SI7021: ");
-#ifdef WIFI  
+#ifdef ESP8266  
   if (si7021.begin(SDAPIN, SCLPIN)) {
     SI7021Present = true;
   }
@@ -221,7 +221,7 @@ void setup() {
     DEBUG_PRINTLN("Sensor missing!!!");
   }
   
-#ifdef WIFI  
+#ifdef ESP8266  
   server.on ( "/", handleRoot );
   server.begin();
   DEBUG_PRINTLN ( "HTTP server started!!" );
@@ -297,7 +297,7 @@ void loop() {
 #ifdef watchdog
 	wdt_reset();
 #endif  
-#ifdef WIFI
+#ifdef ESP8266
   server.handleClient();
 #endif
   if (millis() - lastMeas >= measDelay) {
@@ -354,7 +354,7 @@ void loop() {
     
     sendDataHA();
 
-#ifdef WIFI
+#ifdef ESP8266
 #else    
     EthernetClient client = server.available();
     if (client) {
