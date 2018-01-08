@@ -2,7 +2,6 @@
 //#include "i2c.h"
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
-#include <ArduinoOTA.h>
 
 #define verbose
 #ifdef verbose
@@ -18,13 +17,14 @@
  #define DEBUG_PRINTF(x, y)
 #endif 
 
-//#define ESP8266
+#define ESP8266
 #ifdef ESP8266
   #include <WiFiClient.h>
   #include <ESP8266WiFi.h>
   #include <WiFiManager.h> 
   #include <TimeLib.h>
   #include <WiFiUdp.h>
+#include <ArduinoOTA.h>
   WiFiClient client;
   #define SDAPIN 12 // D6 - GPI12 on ESP-201 module
   #define SCLPIN 14 // D5 - GPI14 on ESP-201 module
@@ -32,14 +32,17 @@
   IPAddress _gw           = IPAddress(192, 168, 1, 1);
   IPAddress _sn           = IPAddress(255, 255, 255, 0);
   ESP8266WebServer server(80);
-  #define TEMPERATURE_DIVIDOR 100
   static const char ntpServerName[] = "tik.cesnet.cz";
   const int timeZone = 1;     // Central European Time
-  WiFiUDP Udp;
+  WiFiUDP EthernetUdp;
   unsigned int localPort = 8888;  // local port to listen for UDP packets
   time_t getNtpTime();
   WiFiManager wifiManager;
+  #include "SI7021.h"
+  SI7021 si7021;
 #else
+  #include "Adafruit_Si7021.h"
+  Adafruit_Si7021 si7021 = Adafruit_Si7021();
  #include <SPI.h>
  #include <Ethernet.h>
   EthernetClient client;
@@ -52,13 +55,14 @@
 #endif
 #endif 
 
+#define TEMPERATURE_DIVIDOR 100
+
+
 #define AIO_SERVER      "192.168.1.56"
 #define AIO_SERVERPORT  1883
 #define AIO_USERNAME    "datel"
 #define AIO_KEY         "hanka12"
 
-#include "SI7021.h"
-SI7021 si7021;
 float                 humidity, tempSI7021, dewPoint;
 bool                  SI7021Present        = false;
 
@@ -227,9 +231,9 @@ void setup() {
   DEBUG_PRINTLN ( "HTTP server started!!" );
   
   DEBUG_PRINTLN("Setup TIME");
-  Udp.begin(localPort);
+  EthernetUdp.begin(localPort);
   DEBUG_PRINT("Local port: ");
-  DEBUG_PRINTLN(Udp.localPort());
+  DEBUG_PRINTLN(EthernetUdp.localPort());
   DEBUG_PRINTLN("waiting for sync");
   setSyncProvider(getNtpTime);
   setSyncInterval(300);
@@ -318,8 +322,13 @@ void loop() {
     }
     
     if (SI7021Present) {
+#ifdef ESP8266      
       humidity=si7021.getHumidityPercent();
       tempSI7021=si7021.getCelsiusHundredths() / 100;
+#else
+      humidity=si7021.readHumidity();
+      tempSI7021=si7021.readTemperature();
+#endif
       //si7021.triggerMeasurement();
 
       if (humidity>100) {
@@ -480,7 +489,7 @@ time_t getNtpTime()
   //IPAddress ntpServerIP; // NTP server's ip address
   IPAddress ntpServerIP = IPAddress(195, 113, 144, 201);
 
-  while (Udp.parsePacket() > 0) ; // discard any previously received packets
+  while (EthernetUdp.parsePacket() > 0) ; // discard any previously received packets
   DEBUG_PRINTLN("Transmit NTP Request");
   // get a random server from the pool
   //WiFi.hostByName(ntpServerName, ntpServerIP);
@@ -490,10 +499,10 @@ time_t getNtpTime()
   sendNTPpacket(ntpServerIP);
   uint32_t beginWait = millis();
   while (millis() - beginWait < 1500) {
-    int size = Udp.parsePacket();
+    int size = EthernetUdp.parsePacket();
     if (size >= NTP_PACKET_SIZE) {
       DEBUG_PRINTLN("Receive NTP Response");
-      Udp.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
+      EthernetUdp.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
       unsigned long secsSince1900;
       // convert four bytes starting at location 40 to a long integer
       secsSince1900 =  (unsigned long)packetBuffer[40] << 24;
@@ -525,9 +534,9 @@ void sendNTPpacket(IPAddress &address)
   packetBuffer[15] = 52;
   // all NTP fields have been given values, now
   // you can send a packet requesting a timestamp:
-  Udp.beginPacket(address, 123); //NTP requests are to port 123
-  Udp.write(packetBuffer, NTP_PACKET_SIZE);
-  Udp.endPacket();
+  EthernetUdp.beginPacket(address, 123); //NTP requests are to port 123
+  EthernetUdp.write(packetBuffer, NTP_PACKET_SIZE);
+  EthernetUdp.endPacket();
 }
 
 void prinSystemTime(){
