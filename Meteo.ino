@@ -2,6 +2,7 @@
 //#include "i2c.h"
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
+#include <TimeLib.h>
 
 #define verbose
 #ifdef verbose
@@ -17,17 +18,23 @@
  #define DEBUG_PRINTF(x, y)
 #endif 
 
-#if !defined(__AVR_ATmega1280__) && !defined(__AVR_ATmega2560__)
+#if defined(__AVR_ATmega168__)
+  #error "Oops! Not enough memory for ATmega168. Select another board."
+#endif
+
+#if !defined(__AVR_ATmega1280__) && !defined(__AVR_ATmega2560__) && !defined(__AVR_ATmega328P__)
   //#error "Oops! Make sure you have 'Arduino Mega 2560' selected from the 'Tools -> Boards' menu."
 #define ESP8266
 #else
 #endif 
 
+static const char ntpServerName[] = "tik.cesnet.cz";
+const int timeZone = 1;     // Central European Time
+
 #ifdef ESP8266
   #include <WiFiClient.h>
   #include <ESP8266WiFi.h>
   #include <WiFiManager.h> 
-  #include <TimeLib.h>
   #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
   WiFiClient client;
@@ -37,8 +44,6 @@
   IPAddress _gw           = IPAddress(192, 168, 1, 1);
   IPAddress _sn           = IPAddress(255, 255, 255, 0);
   ESP8266WebServer server(80);
-  static const char ntpServerName[] = "tik.cesnet.cz";
-  const int timeZone = 1;     // Central European Time
   WiFiUDP EthernetUdp;
   unsigned int localPort = 8888;  // local port to listen for UDP packets
   time_t getNtpTime();
@@ -54,6 +59,7 @@
   byte mac[] = { 0x00, 0xE0, 0x07D, 0xCE, 0xC6, 0x6F };
   IPAddress ip(192,168,1,103);
   EthernetServer server(80);
+  EthernetUDP EthernetUdp;
   #define watchdog //enable this only on board with UNO bootloader
 #ifdef watchdog
   #include <avr/wdt.h>
@@ -113,13 +119,7 @@ byte status=0;
 float versionSW=1.5;
 char versionSWString[] = "METEO v"; //SW name & version
 
-/*
-DewPoint,2016-07-20T05:30:39.196504Z,13.6
-Press,2018-01-03T18:56:46.618138Z,99717.00
-T2899BDCF02000076,2018-01-03T18:56:46.618138Z,5.19
-WindDir,2016-06-21T14:53:33.227881Z,199
-WindSpeed,2016-07-20T05:30:26.842469Z,2.2
-*/
+#ifdef ESP8266
 void handleRoot() {
 	char temp[600];
   // DEBUG_PRINT(year());
@@ -128,7 +128,7 @@ void handleRoot() {
   // DEBUG_PRINT(hour());
   // DEBUG_PRINT(minute());
   // DEBUG_PRINT(second());
-  prinSystemTime();
+  printSystemTime();
   DEBUG_PRINTLN(" Client request");
   digitalWrite(LED_BUILTIN, LOW);
 
@@ -156,7 +156,7 @@ void handleRoot() {
 	server.send ( 200, "text/html", temp );
   digitalWrite(LED_BUILTIN, HIGH);
 }
-
+#endif
 
 void setup() {
 #ifdef verbose
@@ -259,7 +259,7 @@ void setup() {
  
   //while(timeStatus()== timeNotSet)
      ; // wait until the time is set by the sync provider
-  prinSystemTime();
+  printSystemTime();
   
   //OTA
   // Port defaults to 8266
@@ -387,11 +387,13 @@ void loop() {
 #endif
   digitalWrite(LED_BUILTIN, HIGH);
   }
+#ifdef ESP8266
   ArduinoOTA.handle();
+#endif
 }
 
 void sendDataHA() {
-  prinSystemTime();
+  printSystemTime();
   DEBUG_PRINTLN(" I am sending data from Meteo unit to HomeAssistant");
   MQTT_connect();
   if (! _temperature.publish(temperature/TEMPERATURE_DIVIDOR)) {
@@ -555,7 +557,7 @@ void sendNTPpacket(IPAddress &address)
   EthernetUdp.endPacket();
 }
 
-void prinSystemTime(){
+void printSystemTime(){
   DEBUG_PRINT(day());
   DEBUG_PRINT(".");
   DEBUG_PRINT(month());
