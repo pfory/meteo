@@ -17,7 +17,12 @@
  #define DEBUG_PRINTF(x, y)
 #endif 
 
+#if !defined(__AVR_ATmega1280__) && !defined(__AVR_ATmega2560__)
+  //#error "Oops! Make sure you have 'Arduino Mega 2560' selected from the 'Tools -> Boards' menu."
 #define ESP8266
+#else
+#endif 
+
 #ifdef ESP8266
   #include <WiFiClient.h>
   #include <ESP8266WiFi.h>
@@ -26,8 +31,8 @@
   #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
   WiFiClient client;
-  #define SDAPIN 12 // D6 - GPI12 on ESP-201 module
-  #define SCLPIN 14 // D5 - GPI14 on ESP-201 module
+  #define SDAPIN D6 //- GPI12 on ESP-201 module
+  #define SCLPIN D5 //- GPI14 on ESP-201 module
   IPAddress _ip           = IPAddress(192, 168, 1, 103);
   IPAddress _gw           = IPAddress(192, 168, 1, 1);
   IPAddress _sn           = IPAddress(255, 255, 255, 0);
@@ -78,16 +83,23 @@ Adafruit_MQTT_Publish _temperatureDHT          = Adafruit_MQTT_Publish(&mqtt, "/
 
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#define ONE_WIRE_BUS 10
+#ifdef ESP8266
+  #define ONE_WIRE_BUS D4
+#else
+  #define ONE_WIRE_BUS A0
+#endif
 OneWire onewire(ONE_WIRE_BUS); // pin for onewire DALLAS bus
 DallasTemperature dsSensors(&onewire);
 DeviceAddress tempDeviceAddress;
 #define NUMBER_OF_DEVICES 1
 const unsigned long   measTime            = 750; //in ms
 float                 temperature         = 0.f;
-const unsigned long   measDelay           = 60000; //in ms
+const unsigned long   measDelay           = 5000; //in ms
 unsigned long         lastMeas            = measDelay;
 bool                  DS18B20Present      = false;
+
+const unsigned long   sendDelay           = 60000; //in ms
+unsigned long         lastSend            = sendDelay;
 
 #include <Adafruit_BMP085.h> 
 Adafruit_BMP085 bmp;
@@ -127,8 +139,8 @@ void handleRoot() {
         </head>\
         <body>\
           T2899BDCF02000076,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%3d.%02d<br />\
-          Humidity,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%3d<br />\
-          Press,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%6d<br />\
+          Humidity,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%3d.00<br />\
+          Press,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%6d.00<br />\
           DewPoint,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%3d.%02d<br />\
         </body>\
       </html>",
@@ -290,7 +302,7 @@ void setup() {
   });
   ArduinoOTA.begin();
 
-  DEBUG_PRINTLN("Ready");
+  DEBUG_PRINTLN(" Ready");
   //DEBUG_PRINT("IP address: ");
   //DEBUG_PRINTLN(WiFi.localIP());
   digitalWrite(LED_BUILTIN, HIGH);
@@ -305,6 +317,7 @@ void loop() {
   server.handleClient();
 #endif
   if (millis() - lastMeas >= measDelay) {
+    digitalWrite(LED_BUILTIN, LOW);
     lastMeas = millis();
     
     if (DS18B20Present) {
@@ -315,7 +328,7 @@ void loop() {
       }
       DEBUG_PRINTLN("-------------");
       DEBUG_PRINT("Temperature DS18B20: ");
-      DEBUG_PRINT(temperature); 
+      DEBUG_PRINT(temperature / TEMPERATURE_DIVIDOR); 
       DEBUG_PRINTLN(" *C");
     } else {
       temperature = -22.2 * TEMPERATURE_DIVIDOR; //dummy
@@ -361,8 +374,10 @@ void loop() {
     
     dewPoint = calcDewPoint(humidity, temperature);
     
-    sendDataHA();
-
+    if (millis() - lastSend >= sendDelay) {
+      lastSend = millis();
+      sendDataHA();
+    }
 #ifdef ESP8266
 #else    
     EthernetClient client = server.available();
@@ -370,6 +385,7 @@ void loop() {
       generateHTML();
     }
 #endif
+  digitalWrite(LED_BUILTIN, HIGH);
   }
   ArduinoOTA.handle();
 }
