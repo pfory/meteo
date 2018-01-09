@@ -1,3 +1,7 @@
+//BMP085 - pressure sensor
+//DS18B20 - temperature sensor
+//
+
 #include <Wire.h>
 //#include "i2c.h"
 #include "Adafruit_MQTT.h"
@@ -40,7 +44,7 @@ const int timeZone = 1;     // Central European Time
   WiFiClient client;
   #define SDAPIN D6 //- GPI12 on ESP-201 module
   #define SCLPIN D5 //- GPI14 on ESP-201 module
-  IPAddress _ip           = IPAddress(192, 168, 1, 103);
+  IPAddress _ip           = IPAddress(192, 168, 1, 102);
   IPAddress _gw           = IPAddress(192, 168, 1, 1);
   IPAddress _sn           = IPAddress(255, 255, 255, 0);
   ESP8266WebServer server(80);
@@ -84,8 +88,9 @@ Adafruit_MQTT_Publish _temperature             = Adafruit_MQTT_Publish(&mqtt, "/
 Adafruit_MQTT_Publish _pressure                = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/Press");
 Adafruit_MQTT_Publish _temperature085          = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/Temp085");
 Adafruit_MQTT_Publish _humidity                = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/Humidity");
-Adafruit_MQTT_Publish _temperatureDHT          = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/TempDHT");
-  
+Adafruit_MQTT_Publish _tempSI7021              = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/Temp7021");
+Adafruit_MQTT_Publish _dewpoint                = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/DewPoint");
+Adafruit_MQTT_Publish _versionSW               = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/VersionSW");
 
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -416,11 +421,21 @@ void sendDataHA() {
   } else {
     DEBUG_PRINTLN("Humidity OK!");
   }  
-  // if (! _temperatureDHT.publish(temperatureDHT)) {
-    // DEBUG_PRINTLN("failed");
-  // } else {
-    // DEBUG_PRINTLN("OK!");
-  // }  
+  if (! _tempSI7021.publish(tempSI7021)) {
+    DEBUG_PRINTLN("failed");
+  } else {
+    DEBUG_PRINTLN("OK!");
+  }  
+  if (! _dewpoint.publish(dewPoint/TEMPERATURE_DIVIDOR)) {
+    DEBUG_PRINTLN("DewPoint failed");
+  } else {
+    DEBUG_PRINTLN("DewPoint OK!");
+  }  
+  if (! _versionSW.publish(versionSW)) {
+    DEBUG_PRINTLN("Version SW failed");
+  } else {
+    DEBUG_PRINTLN("Version SW OK!");
+  }  
 }
 
  
