@@ -70,7 +70,7 @@ const int timeZone = 1;     // Central European Time
 #endif
 #endif 
 
-#define TEMPERATURE_DIVIDOR 100
+//#define TEMPERATURE_DIVIDOR 100
 
 
 #define AIO_SERVER      "192.168.1.56"
@@ -115,8 +115,8 @@ unsigned long         lastSend            = sendDelay;
 #include <Adafruit_BMP085.h> 
 Adafruit_BMP085 bmp;
 float                 high_above_sea      = 369.0;
-float                 pressure            = 0;
-float                 temperature085      = 0;
+float                 pressure            = 0.f;
+float                 temperature085      = 0.f;
 bool                  BMP085Present       = false;
 
 
@@ -150,13 +150,13 @@ void handleRoot() {
         </body>\
       </html>",
       year(), month(), day(), hour(), minute(), second(),
-      (int)(temperature/TEMPERATURE_DIVIDOR), (abs((int)temperature))%TEMPERATURE_DIVIDOR,
+      (int)temperature, abs((temperature - (int)temperature) * 100),
       year(), month(), day(), hour(), minute(), second(),
       (int)humidity,
       year(), month(), day(), hour(), minute(), second(),
       (int)pressure,
       year(), month(), day(), hour(), minute(), second(),
-      (int)dewPoint/TEMPERATURE_DIVIDOR, (abs((int)dewPoint))%TEMPERATURE_DIVIDOR
+      (int)dewPoint, abs((dewPoint - (int)dewPoint) * 100)
 	);
 	server.send ( 200, "text/html", temp );
   digitalWrite(LED_BUILTIN, HIGH);
@@ -329,14 +329,14 @@ void loop() {
       dsSensors.requestTemperatures(); // Send the command to get temperatures
       delay(measTime);
       if (dsSensors.getCheckForConversion()==true) {
-        temperature = dsSensors.getTempCByIndex(0) * TEMPERATURE_DIVIDOR;
+        temperature = dsSensors.getTempCByIndex(0);
       }
       DEBUG_PRINTLN("-------------");
       DEBUG_PRINT("Temperature DS18B20: ");
-      DEBUG_PRINT(temperature / TEMPERATURE_DIVIDOR); 
+      DEBUG_PRINT(temperature); 
       DEBUG_PRINTLN(" *C");
     } else {
-      temperature = -22.2 * TEMPERATURE_DIVIDOR; //dummy
+      temperature = -22.2; //dummy
     }
     
     if (SI7021Present) {
@@ -401,7 +401,7 @@ void sendDataHA() {
   printSystemTime();
   DEBUG_PRINTLN(" I am sending data from Meteo unit to HomeAssistant");
   MQTT_connect();
-  if (! _temperature.publish(temperature/TEMPERATURE_DIVIDOR)) {
+  if (! _temperature.publish(temperature)) {
     DEBUG_PRINTLN("Temperature failed");
   } else {
     DEBUG_PRINTLN("Temperature OK!");
@@ -426,7 +426,7 @@ void sendDataHA() {
   } else {
     DEBUG_PRINTLN("OK!");
   }  
-  if (! _dewpoint.publish(dewPoint/TEMPERATURE_DIVIDOR)) {
+  if (! _dewpoint.publish(dewPoint)) {
     DEBUG_PRINTLN("DewPoint failed");
   } else {
     DEBUG_PRINTLN("DewPoint OK!");
@@ -593,7 +593,7 @@ void printDigits(int digits){
   DEBUG_PRINT(digits);
 }
 
-float calcDewPoint (int humidity, int temperature)  
+float calcDewPoint (float humidity, float temperature)  
 {  
     float logEx;  
     logEx = 0.66077 + (7.5 * temperature) / (237.3 + temperature)  
