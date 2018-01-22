@@ -143,19 +143,21 @@ void handleRoot() {
           <meta charset='UTF-8'>\
         </head>\
         <body>\
-          T2899BDCF02000076,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%3d.%02d<br />\
+          T2899BDCF02000076,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%s%3d.%02d<br />\
           Humidity,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%3d.00<br />\
           Press,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%6d.00<br />\
-          DewPoint,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%3d.%02d<br />\
+          DewPoint,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%s%3d.%02d<br />\
         </body>\
       </html>",
       year(), month(), day(), hour(), minute(), second(),
+      if (temperature<0 && temperature>-1) {"-"} else {""}
       (int)temperature, abs((temperature - (int)temperature) * 100),
       year(), month(), day(), hour(), minute(), second(),
       (int)humidity,
       year(), month(), day(), hour(), minute(), second(),
       (int)pressure,
       year(), month(), day(), hour(), minute(), second(),
+      if (dewPoint<0 && dewPoint>-1) {"-"} else {""}
       (int)dewPoint, abs((dewPoint - (int)dewPoint) * 100)
 	);
 	server.send ( 200, "text/html", temp );
