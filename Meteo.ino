@@ -1,12 +1,20 @@
-//BMP085 - pressure sensor
-//DS18B20 - temperature sensor
-//
+//BMP085   - pressure sensor
+//DS18B20  - temperature sensor
+//SI7021   - temperature and humidity sensor
+
+//Pinout NODEMCU 1.0
+//D4 - DS18B20
+//D5 - SCL
+//D6 - SDA
+//3.3
+//GND
 
 #include <Wire.h>
 //#include "i2c.h"
 #include "Adafruit_MQTT.h"
 #include "Adafruit_MQTT_Client.h"
 #include <TimeLib.h>
+#include <Timezone.h>
 
 #define verbose
 #ifdef verbose
@@ -33,7 +41,11 @@
 #endif 
 
 static const char ntpServerName[] = "tik.cesnet.cz";
-const int timeZone = 1;     // Central European Time
+//const int timeZone = 2;     // Central European Time
+//Central European Time (Frankfurt, Paris)
+TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120};     //Central European Summer Time
+TimeChangeRule CET = {"CET", Last, Sun, Oct, 3, 60};       //Central European Standard Time
+Timezone CE(CEST, CET);
 
 #ifdef ESP8266
   #include <WiFiClient.h>
@@ -174,7 +186,7 @@ void setup() {
   Serial.println(versionSW);
 #endif
 #ifdef ESP8266
-	pinMode (LED_BUILTIN, OUTPUT );
+  pinMode (LED_BUILTIN, OUTPUT );
   digitalWrite(LED_BUILTIN, LOW );
   //WiFi.config(ip); 
   wifiManager.setSTAStaticIPConfig(_ip, _gw, _sn);
@@ -340,7 +352,7 @@ void loop() {
       DEBUG_PRINT(temperature); 
       DEBUG_PRINTLN(" *C");
     } else {
-      temperature = -22.2; //dummy
+      temperature = 0.0; //dummy
     }
     
     if (SI7021Present) {
@@ -363,8 +375,8 @@ void loop() {
       DEBUG_PRINT(humidity);
       DEBUG_PRINTLN(" %Rh");
     } else {
-      humidity = 55.5;    //dummy
-      tempSI7021 = 33.3;  //dummy
+      humidity = 0.0;    //dummy
+      tempSI7021 = 0.0;  //dummy
     }
     
     if (BMP085Present) {
@@ -377,8 +389,8 @@ void loop() {
       DEBUG_PRINT(pressure);
       DEBUG_PRINTLN(" Pa");
     } else {
-      temperature085 = 77.7;  //dummy
-      pressure = 123456;     //Pa - dummy
+      temperature085 = 0.0;  //dummy
+      pressure = 0;     //Pa - dummy
     }
     
     dewPoint = calcDewPoint(humidity, temperature);
@@ -540,13 +552,29 @@ time_t getNtpTime()
     if (size >= NTP_PACKET_SIZE) {
       DEBUG_PRINTLN("Receive NTP Response");
       EthernetUdp.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
-      unsigned long secsSince1900;
-      // convert four bytes starting at location 40 to a long integer
-      secsSince1900 =  (unsigned long)packetBuffer[40] << 24;
-      secsSince1900 |= (unsigned long)packetBuffer[41] << 16;
-      secsSince1900 |= (unsigned long)packetBuffer[42] << 8;
-      secsSince1900 |= (unsigned long)packetBuffer[43];
-      return secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;
+      unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
+      unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
+      // combine the four bytes (two words) into a long integer
+      // this is NTP time (seconds since Jan 1 1900):
+      unsigned long secsSince1900 = highWord << 16 | lowWord;
+      Serial.print("Seconds since Jan 1 1900 = " );
+      Serial.println(secsSince1900);
+
+      // now convert NTP time into everyday time:
+      Serial.print("Unix time = ");
+      // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
+      const unsigned long seventyYears = 2208988800UL;
+      // subtract seventy years:
+      unsigned long epoch = secsSince1900 - seventyYears;
+      // print Unix time:
+      Serial.println(epoch);
+	  
+      TimeChangeRule *tcr;
+      time_t utc;
+      utc = epoch;
+      
+      return CE.toLocal(utc, &tcr);
+      //return secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;
     }
   }
   DEBUG_PRINTLN("No NTP Response :-(");
