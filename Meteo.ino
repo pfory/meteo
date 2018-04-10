@@ -16,6 +16,7 @@
 #include <TimeLib.h>
 #include <Timezone.h>
 
+
 #define verbose
 #ifdef verbose
  #define DEBUG_PRINT(x)         Serial.print (x)
@@ -30,13 +31,14 @@
  #define DEBUG_PRINTF(x, y)
 #endif 
 
+#define ESP8266
+
 #if defined(__AVR_ATmega168__)
   #error "Oops! Not enough memory for ATmega168. Select another board."
 #endif
 
 #if !defined(__AVR_ATmega1280__) && !defined(__AVR_ATmega2560__) && !defined(__AVR_ATmega328P__)
   //#error "Oops! Make sure you have 'Arduino Mega 2560' selected from the 'Tools -> Boards' menu."
-#define ESP8266
 #else
 #endif 
 
@@ -52,7 +54,7 @@ Timezone CE(CEST, CET);
   #include <ESP8266WiFi.h>
   #include <WiFiManager.h> 
   #include <WiFiUdp.h>
-#include <ArduinoOTA.h>
+  #include <ArduinoOTA.h>
   WiFiClient client;
   #define SDAPIN D6 //- GPI12 on ESP-201 module
   #define SCLPIN D5 //- GPI14 on ESP-201 module
@@ -133,7 +135,7 @@ bool                  BMP085Present       = false;
 
 
 byte status=0;
-float versionSW=1.51;
+float versionSW=1.6;
 char versionSWString[] = "METEO v"; //SW name & version
 
 #ifdef ESP8266
