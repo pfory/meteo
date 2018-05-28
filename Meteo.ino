@@ -105,6 +105,8 @@ Adafruit_MQTT_Publish _humidity                = Adafruit_MQTT_Publish(&mqtt, "/
 Adafruit_MQTT_Publish _tempSI7021              = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/Temp7021");
 Adafruit_MQTT_Publish _dewpoint                = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/DewPoint");
 Adafruit_MQTT_Publish _versionSW               = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/VersionSW");
+Adafruit_MQTT_Subscribe restart                = Adafruit_MQTT_Subscribe(&mqtt, "/home/Meteo/restart");
+
 
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -339,6 +341,35 @@ void loop() {
 #ifdef ESP8266
   server.handleClient();
 #endif
+
+  Adafruit_MQTT_Subscribe *subscription;
+  while ((subscription = mqtt.readSubscription(5000))) {
+    // if (subscription == &setupPulse) {
+      // DEBUG_PRINT(F("Set new pulse to: "));
+      // char *pNew = (char *)setupPulse.lastread;
+      // uint32_t pCount=atol(pNew); 
+      // DEBUG_PRINTLN(pCount);
+      // writePulseToFile(pCount);
+      // pulseCount=pCount;
+      // if (! pulse.publish(pulseCount)) {
+        // DEBUG_PRINTLN("failed");
+      // } else {
+        // DEBUG_PRINTLN("OK!");
+      // }
+    // }
+    if (subscription == &restart) {
+      char *pNew = (char *)restart.lastread;
+      uint32_t pPassw=atol(pNew); 
+      if (pPassw==650419) {
+        DEBUG_PRINT(F("Restart ESP now!"));
+        ESP.restart();
+      } else {
+        DEBUG_PRINT(F("Wrong password."));
+      }
+    }
+  }
+
+
   if (millis() - lastMeas >= measDelay) {
     digitalWrite(LED_BUILTIN, LOW);
     lastMeas = millis();
