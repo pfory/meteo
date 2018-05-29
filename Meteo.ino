@@ -137,7 +137,7 @@ bool                  BMP085Present       = false;
 
 
 byte status=0;
-float versionSW=1.6;
+float versionSW=1.61;
 char versionSWString[] = "METEO v"; //SW name & version
 
 #ifdef ESP8266
