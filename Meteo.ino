@@ -106,6 +106,7 @@ Adafruit_MQTT_Publish _tempSI7021              = Adafruit_MQTT_Publish(&mqtt, "/
 Adafruit_MQTT_Publish _dewpoint                = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/DewPoint");
 Adafruit_MQTT_Publish _versionSW               = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/VersionSW");
 Adafruit_MQTT_Subscribe restart                = Adafruit_MQTT_Subscribe(&mqtt, "/home/Meteo/restart");
+Adafruit_MQTT_Publish _hb                      = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/HeartBeat");
 
 
 #include <OneWire.h>
@@ -135,10 +136,12 @@ float                 pressure            = 0.f;
 float                 temperature085      = 0.f;
 bool                  BMP085Present       = false;
 
+unsigned long milisLastRunMinOld          = 0;
 
 byte status=0;
-float versionSW=1.61;
-char versionSWString[] = "METEO v"; //SW name & version
+float versionSW                           = 1.61;
+char versionSWString[]                    = "METEO v"; //SW name & version
+byte heartBeat                            = 10;
 
 #ifdef ESP8266
 void handleRoot() {
@@ -186,12 +189,30 @@ void handleRoot() {
 void setup() {
 #ifdef verbose
   Serial.begin(PORTSPEED);
-  Serial.print(versionSWString);
-  Serial.println(versionSW);
+  DEBUG_PRINT(versionSWString);
+  DEBUG_PRINTLN(versionSW);
 #endif
 #ifdef ESP8266
   pinMode (LED_BUILTIN, OUTPUT );
   digitalWrite(LED_BUILTIN, LOW );
+ 
+  DEBUG_PRINTLN(ESP.getResetReason());
+  if (ESP.getResetReason()=="Software/System restart") {
+    heartBeat=1;
+  } else if (ESP.getResetReason()=="Power on") {
+    heartBeat=2;
+  } else if (ESP.getResetReason()=="External System") {
+    heartBeat=3;
+  } else if (ESP.getResetReason()=="Hardware Watchdog") {
+    heartBeat=4;
+  } else if (ESP.getResetReason()=="Exception") {
+    heartBeat=5;
+  } else if (ESP.getResetReason()=="Software Watchdog") {
+    heartBeat=6;
+  } else if (ESP.getResetReason()=="Deep-Sleep Wake") {
+    heartBeat=7;
+  }
+  
   //WiFi.config(ip); 
   wifiManager.setSTAStaticIPConfig(_ip, _gw, _sn);
   //WiFi.begin(ssid, password);
@@ -344,19 +365,6 @@ void loop() {
 
   Adafruit_MQTT_Subscribe *subscription;
   while ((subscription = mqtt.readSubscription(5000))) {
-    // if (subscription == &setupPulse) {
-      // DEBUG_PRINT(F("Set new pulse to: "));
-      // char *pNew = (char *)setupPulse.lastread;
-      // uint32_t pCount=atol(pNew); 
-      // DEBUG_PRINTLN(pCount);
-      // writePulseToFile(pCount);
-      // pulseCount=pCount;
-      // if (! pulse.publish(pulseCount)) {
-        // DEBUG_PRINTLN("failed");
-      // } else {
-        // DEBUG_PRINTLN("OK!");
-      // }
-    // }
     if (subscription == &restart) {
       char *pNew = (char *)restart.lastread;
       uint32_t pPassw=atol(pNew); 
@@ -368,7 +376,6 @@ void loop() {
       }
     }
   }
-
 
   if (millis() - lastMeas >= measDelay) {
     digitalWrite(LED_BUILTIN, LOW);
@@ -432,6 +439,23 @@ void loop() {
       lastSend = millis();
       sendDataHA();
     }
+    
+    if (millis() - milisLastRunMinOld > 60000) {
+      milisLastRunMinOld = millis();
+      if (! _hb.publish(heartBeat)) {
+        DEBUG_PRINTLN("Send HB failed");
+      } else {
+        DEBUG_PRINTLN("Send HB OK!");
+      }
+      heartBeat++;
+      if (! _versionSW.publish(versionSW)) {
+        DEBUG_PRINT(F("Send verSW failed!"));
+      } else {
+        DEBUG_PRINT(F("Send verSW OK!"));
+      }
+    }
+  
+    
 #ifdef ESP8266
 #else    
     EthernetClient client = server.available();
@@ -479,11 +503,6 @@ void sendDataHA() {
     DEBUG_PRINTLN("DewPoint failed");
   } else {
     DEBUG_PRINTLN("DewPoint OK!");
-  }  
-  if (! _versionSW.publish(versionSW)) {
-    DEBUG_PRINTLN("Version SW failed");
-  } else {
-    DEBUG_PRINTLN("Version SW OK!");
   }  
 }
 
@@ -590,17 +609,17 @@ time_t getNtpTime()
       // combine the four bytes (two words) into a long integer
       // this is NTP time (seconds since Jan 1 1900):
       unsigned long secsSince1900 = highWord << 16 | lowWord;
-      Serial.print("Seconds since Jan 1 1900 = " );
-      Serial.println(secsSince1900);
+      DEBUG_PRINT("Seconds since Jan 1 1900 = " );
+      DEBUG_PRINTLN(secsSince1900);
 
       // now convert NTP time into everyday time:
-      Serial.print("Unix time = ");
+      DEBUG_PRINT("Unix time = ");
       // Unix time starts on Jan 1 1970. In seconds, that's 2208988800:
       const unsigned long seventyYears = 2208988800UL;
       // subtract seventy years:
       unsigned long epoch = secsSince1900 - seventyYears;
       // print Unix time:
-      Serial.println(epoch);
+      DEBUG_PRINTLN(epoch);
 	  
       TimeChangeRule *tcr;
       time_t utc;
