@@ -141,7 +141,7 @@ unsigned long milisLastRunMinOld          = 0;
 byte status=0;
 float versionSW                           = 1.61;
 char versionSWString[]                    = "METEO v"; //SW name & version
-byte heartBeat                            = 10;
+uint32_t heartBeat                        = 10;
 
 #ifdef ESP8266
 void handleRoot() {
