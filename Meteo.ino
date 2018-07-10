@@ -463,7 +463,7 @@ void loop() {
       generateHTML();
     }
 #endif
-  digitalWrite(LED_BUILTIN, HIGH);
+    digitalWrite(LED_BUILTIN, HIGH);
   }
 #ifdef ESP8266
   ArduinoOTA.handle();
@@ -517,8 +517,8 @@ void MQTT_connect() {
 
   DEBUG_PRINT("Connecting to MQTT... ");
 
-uint8_t retries = 3;
-while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
+  uint8_t retries = 3;
+  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
      DEBUG_PRINTLN(mqtt.connectErrorString(ret));
      DEBUG_PRINTLN("Retrying MQTT connection in 5 seconds...");
      mqtt.disconnect();
@@ -528,7 +528,7 @@ while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
        // basically die and wait for WDT to reset me
        while (1);
      }
-}
+  }
   DEBUG_PRINTLN("MQTT Connected!");
 }
 
