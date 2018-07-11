@@ -123,11 +123,11 @@ DeviceAddress tempDeviceAddress;
 const unsigned long   measTime            = 750; //in ms
 float                 temperature         = 0.f;
 const unsigned long   measDelay           = 5000; //in ms
-unsigned long         lastMeas            = measDelay;
+unsigned long         lastMeas            = 0;
 bool                  DS18B20Present      = false;
 
 const unsigned long   sendDelay           = 60000; //in ms
-unsigned long         lastSend            = sendDelay;
+unsigned long         lastSend            = 0;
 
 #include <Adafruit_BMP085.h> 
 Adafruit_BMP085 bmp;
@@ -139,7 +139,7 @@ bool                  BMP085Present       = false;
 unsigned long milisLastRunMinOld          = 0;
 
 byte status=0;
-float versionSW                           = 1.62;
+float versionSW                           = 1.64;
 char versionSWString[]                    = "METEO v"; //SW name & version
 uint32_t heartBeat                        = 10;
 
@@ -284,6 +284,9 @@ void setup() {
   }
   
 #ifdef ESP8266  
+  mqtt.subscribe(&restart);
+
+
   server.on ( "/", handleRoot );
   server.begin();
   DEBUG_PRINTLN ( "HTTP server started!!" );
@@ -351,6 +354,7 @@ void setup() {
   DEBUG_PRINTLN(" Ready");
   //DEBUG_PRINT("IP address: ");
   //DEBUG_PRINTLN(WiFi.localIP());
+  
   digitalWrite(LED_BUILTIN, HIGH);
 #endif
 }
@@ -362,21 +366,6 @@ void loop() {
 #ifdef ESP8266
   server.handleClient();
 #endif
-
-  Adafruit_MQTT_Subscribe *subscription;
-  while ((subscription = mqtt.readSubscription(5000))) {
-    if (subscription == &restart) {
-      char *pNew = (char *)restart.lastread;
-      uint32_t pPassw=atol(pNew); 
-      if (pPassw==650419) {
-        DEBUG_PRINT(F("Restart ESP now!"));
-        ESP.restart();
-      } else {
-        DEBUG_PRINT(F("Wrong password."));
-      }
-    }
-  }
-
   if (millis() - lastMeas >= measDelay) {
     digitalWrite(LED_BUILTIN, LOW);
     lastMeas = millis();
@@ -435,27 +424,6 @@ void loop() {
     
     dewPoint = calcDewPoint(humidity, temperature);
     
-    if (millis() - lastSend >= sendDelay) {
-      lastSend = millis();
-      sendDataHA();
-    }
-    
-    if (millis() - milisLastRunMinOld > 60000) {
-      milisLastRunMinOld = millis();
-      if (! _hb.publish(heartBeat)) {
-        DEBUG_PRINTLN("Send HB failed");
-      } else {
-        DEBUG_PRINTLN("Send HB OK!");
-      }
-      heartBeat++;
-      if (! _versionSW.publish(versionSW)) {
-        DEBUG_PRINT(F("Send verSW failed!"));
-      } else {
-        DEBUG_PRINT(F("Send verSW OK!"));
-      }
-    }
-  
-    
 #ifdef ESP8266
 #else    
     EthernetClient client = server.available();
@@ -465,6 +433,43 @@ void loop() {
 #endif
     digitalWrite(LED_BUILTIN, HIGH);
   }
+
+  if (millis() - lastSend >= sendDelay) {
+    lastSend = millis();
+    sendDataHA();
+  }
+
+  if (millis() - milisLastRunMinOld > 60000) {
+    milisLastRunMinOld = millis();
+    if (! _hb.publish(heartBeat)) {
+      DEBUG_PRINTLN("Send HB failed");
+    } else {
+      DEBUG_PRINTLN("Send HB OK!");
+    }
+    heartBeat++;
+    if (! _versionSW.publish(versionSW)) {
+      DEBUG_PRINT(F("Send verSW failed!"));
+    } else {
+      DEBUG_PRINT(F("Send verSW OK!"));
+    }
+  }
+
+  
+  MQTT_connect();
+  Adafruit_MQTT_Subscribe *subscription;
+  while ((subscription = mqtt.readSubscription(2000))) {
+    if (subscription == &restart) {
+      char *pNew = (char *)restart.lastread;
+      uint32_t pPassw=atol(pNew); 
+      if (pPassw==650419) {
+        DEBUG_PRINT(F("Restart ESP now!"));
+        ESP.restart();
+       } else {
+        DEBUG_PRINT(F("Wrong password."));
+      }
+    }
+  }
+
 #ifdef ESP8266
   ArduinoOTA.handle();
 #endif
