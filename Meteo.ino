@@ -216,7 +216,7 @@ void setup() {
   //WiFi.config(ip); 
   wifiManager.setSTAStaticIPConfig(_ip, _gw, _sn);
   //WiFi.begin(ssid, password);
-  if (!wifiManager.autoConnect("AutoConnectAP", "password")) {
+  if (!wifiManager.autoConnect("Meteo", "password")) {
     DEBUG_PRINTLN("failed to connect, we should reset as see if it connects");
     delay(3000);
     ESP.reset();
