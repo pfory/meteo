@@ -139,7 +139,7 @@ bool                  BMP085Present       = false;
 unsigned long milisLastRunMinOld          = 0;
 
 byte status=0;
-float versionSW                           = 1.64;
+float versionSW                           = 1.65;
 char versionSWString[]                    = "METEO v"; //SW name & version
 uint32_t heartBeat                        = 10;
 
