@@ -16,6 +16,23 @@
 #include <TimeLib.h>
 #include <Timezone.h>
 
+#define ESP8266
+
+#ifdef ESP8266
+  #include <WiFiManager.h> 
+  WiFiManager wifiManager;
+#endif
+
+//for LED status
+#include <Ticker.h>
+Ticker ticker;
+
+void tick()
+{
+  //toggle state
+  int state = digitalRead(BUILTIN_LED);  // get the current state of GPIO1 pin
+  digitalWrite(BUILTIN_LED, !state);     // set pin to the opposite state
+}
 
 #define verbose
 #ifdef verbose
@@ -30,8 +47,6 @@
  #define DEBUG_PRINTLN(x)
  #define DEBUG_PRINTF(x, y)
 #endif 
-
-#define ESP8266
 
 #if defined(__AVR_ATmega168__)
   #error "Oops! Not enough memory for ATmega168. Select another board."
@@ -52,7 +67,6 @@ Timezone CE(CEST, CET);
 #ifdef ESP8266
   #include <WiFiClient.h>
   #include <ESP8266WiFi.h>
-  #include <WiFiManager.h> 
   #include <WiFiUdp.h>
   #include <ArduinoOTA.h>
   WiFiClient client;
@@ -65,7 +79,6 @@ Timezone CE(CEST, CET);
   WiFiUDP EthernetUdp;
   unsigned int localPort = 8888;  // local port to listen for UDP packets
   time_t getNtpTime();
-  WiFiManager wifiManager;
   #include "SI7021.h"
   SI7021 si7021;
 #else
@@ -138,8 +151,20 @@ bool                  BMP085Present       = false;
 
 unsigned long milisLastRunMinOld          = 0;
 
+#ifdef ESP8266
+//gets called when WiFiManager enters configuration mode
+void configModeCallback (WiFiManager *myWiFiManager) {
+  Serial.println("Entered config mode");
+  Serial.println(WiFi.softAPIP());
+  //if you used auto generated SSID, print it
+  Serial.println(myWiFiManager->getConfigPortalSSID());
+  //entered config mode, make led toggle faster
+  ticker.attach(0.2, tick);
+}
+#endif
+
 byte status=0;
-float versionSW                           = 1.65;
+float versionSW                           = 1.66;
 char versionSWString[]                    = "METEO v"; //SW name & version
 uint32_t heartBeat                        = 10;
 
@@ -154,7 +179,7 @@ void handleRoot() {
   // DEBUG_PRINT(second());
   printSystemTime();
   DEBUG_PRINTLN(" Client request");
-  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(BUILTIN_LED, LOW);
   
 	snprintf ( temp, 400,
       "<html>\
@@ -182,7 +207,7 @@ void handleRoot() {
       abs((dewPoint - (int)dewPoint) * 100)
 	);
 	server.send ( 200, "text/html", temp );
-  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(BUILTIN_LED, HIGH);
 }
 #endif
 
@@ -193,9 +218,11 @@ void setup() {
   DEBUG_PRINTLN(versionSW);
 #endif
 #ifdef ESP8266
-  pinMode (LED_BUILTIN, OUTPUT );
-  digitalWrite(LED_BUILTIN, LOW );
- 
+  //set led pin as output
+  pinMode(BUILTIN_LED, OUTPUT);
+  // start ticker with 0.5 because we start in AP mode and try to connect
+  ticker.attach(0.6, tick);
+  
   DEBUG_PRINTLN(ESP.getResetReason());
   if (ESP.getResetReason()=="Software/System restart") {
     heartBeat=1;
@@ -213,8 +240,20 @@ void setup() {
     heartBeat=7;
   }
   
-  //WiFi.config(ip); 
+  //WiFiManager
+  //Local intialization. Once its business is done, there is no need to keep it around
+
+  //reset settings - for testing
+  //wifiManager.resetSettings();
+
+  //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
+  wifiManager.setAPCallback(configModeCallback);
+  
+  //Serial.println(ESP.getFlashChipRealSize);
+  //Serial.println(ESP.getCpuFreqMHz);
+  //WiFi.begin(ssid, password);
   wifiManager.setSTAStaticIPConfig(_ip, _gw, _sn);
+
   //WiFi.begin(ssid, password);
   if (!wifiManager.autoConnect("Meteo", "password")) {
     DEBUG_PRINTLN("failed to connect, we should reset as see if it connects");
@@ -355,7 +394,9 @@ void setup() {
   //DEBUG_PRINT("IP address: ");
   //DEBUG_PRINTLN(WiFi.localIP());
   
-  digitalWrite(LED_BUILTIN, HIGH);
+  ticker.detach();
+  //keep LED on
+  digitalWrite(BUILTIN_LED, LOW);
 #endif
 }
 
@@ -367,7 +408,7 @@ void loop() {
   server.handleClient();
 #endif
   if (millis() - lastMeas >= measDelay) {
-    digitalWrite(LED_BUILTIN, LOW);
+    digitalWrite(BUILTIN_LED, LOW);
     lastMeas = millis();
     
     if (DS18B20Present) {
@@ -431,7 +472,7 @@ void loop() {
       generateHTML();
     }
 #endif
-    digitalWrite(LED_BUILTIN, HIGH);
+    digitalWrite(BUILTIN_LED, HIGH);
   }
 
   if (millis() - lastSend >= sendDelay) {
