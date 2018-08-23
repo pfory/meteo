@@ -214,9 +214,9 @@ void handleRoot() {
 void setup() {
 #ifdef verbose
   Serial.begin(PORTSPEED);
+#endif
   DEBUG_PRINT(versionSWString);
   DEBUG_PRINTLN(versionSW);
-#endif
 #ifdef ESP8266
   //set led pin as output
   pinMode(BUILTIN_LED, OUTPUT);
