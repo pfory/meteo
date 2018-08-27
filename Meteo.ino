@@ -164,7 +164,7 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 #endif
 
 byte status=0;
-float versionSW                           = 1.66;
+float versionSW                           = 1.67;
 char versionSWString[]                    = "METEO v"; //SW name & version
 uint32_t heartBeat                        = 10;
 
@@ -245,6 +245,7 @@ void setup() {
 
   //reset settings - for testing
   //wifiManager.resetSettings();
+  wifiManager.setConnectTimeout(600); //5min
 
   //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
   wifiManager.setAPCallback(configModeCallback);
