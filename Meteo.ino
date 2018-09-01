@@ -248,6 +248,7 @@ void setup() {
 
   //reset settings - for testing
   //wifiManager.resetSettings();
+  wifiManager.setConnectTimeout(600); //5min
 
   //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
   wifiManager.setAPCallback(configModeCallback);
@@ -264,17 +265,6 @@ void setup() {
     ESP.reset();
     delay(5000);
   }
-
-	// Wait for connection
-	while (WiFi.status() != WL_CONNECTED) {
-		delay(500);
-		DEBUG_PRINT(".");
-	}
-	DEBUG_PRINTLN("");
-	// DEBUG_PRINT("Connected to ");
-	// DEBUG_PRINTLN(ssid);
-	// DEBUG_PRINT("IP address: ");
-	//DEBUG_PRINTLN(WiFi.localIP());
 #else
   Ethernet.begin(mac, ip);
   DEBUG_PRINTLN(Ethernet.localIP());
