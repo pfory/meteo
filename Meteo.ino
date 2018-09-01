@@ -118,6 +118,7 @@ Adafruit_MQTT_Publish _humidity                = Adafruit_MQTT_Publish(&mqtt, "/
 Adafruit_MQTT_Publish _tempSI7021              = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/Temp7021");
 Adafruit_MQTT_Publish _dewpoint                = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/DewPoint");
 Adafruit_MQTT_Publish _versionSW               = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/VersionSW");
+Adafruit_MQTT_Publish _napeti                  = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/Napeti");
 Adafruit_MQTT_Subscribe restart                = Adafruit_MQTT_Subscribe(&mqtt, "/home/Meteo/restart");
 Adafruit_MQTT_Publish _hb                      = Adafruit_MQTT_Publish(&mqtt, "/home/Meteo/HeartBeat");
 
@@ -163,8 +164,10 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 }
 #endif
 
+ADC_MODE(ADC_VCC);
+
 byte status=0;
-float versionSW                           = 1.66;
+float versionSW                           = 1.68;
 char versionSWString[]                    = "METEO v"; //SW name & version
 uint32_t heartBeat                        = 10;
 
@@ -493,6 +496,12 @@ void loop() {
     } else {
       DEBUG_PRINT(F("Send verSW OK!"));
     }
+    if (! _napeti.publish(ESP.getVcc())) {
+      DEBUG_PRINTLN("Send napeti failed");
+    } else {
+      DEBUG_PRINTLN("Send napeti OK!");
+    }
+
   }
 
   
