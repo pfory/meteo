@@ -335,7 +335,7 @@ void setup() {
   // DEBUG_PRINTLN(timeStatus());
 
   if (timeStatus()== timeNotSet) {
-    ESP.reset();
+    //ESP.reset();
   }
  
   //while(timeStatus()== timeNotSet)
