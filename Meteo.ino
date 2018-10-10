@@ -257,14 +257,36 @@ void setup() {
   //Serial.println(ESP.getCpuFreqMHz);
   //WiFi.begin(ssid, password);
   wifiManager.setSTAStaticIPConfig(_ip, _gw, _sn);
-
-  //WiFi.begin(ssid, password);
-  if (!wifiManager.autoConnect("Meteo", "password")) {
-    DEBUG_PRINTLN("failed to connect, we should reset as see if it connects");
+  
+  if (WiFi.SSID()==""){
+    Serial.println("We haven't got any access point credentials, so get them now");   
+    if (!wifiManager.autoConnect("Meteo", "password")) {
+      DEBUG_PRINTLN("failed to connect, we should reset as see if it connects");
+      delay(3000);
+      ESP.reset();
+      delay(5000);
+    }
+  }
+  else{
+    WiFi.mode(WIFI_STA); // Force to station mode because if device was switched off while in access point mode it will start up next time in access point mode.
+    unsigned long startedAt = millis();
+    Serial.print("After waiting ");
+    int connRes = WiFi.waitForConnectResult();
+    float waited = (millis()- startedAt);
+    Serial.print(waited/1000);
+    Serial.print(" secs in setup() connection result is ");
+    Serial.println(connRes);
+  }
+  if (WiFi.status()!=WL_CONNECTED){
+    Serial.println("failed to connect, RESTART");
     delay(3000);
     ESP.reset();
     delay(5000);
+  } else {
+    Serial.print("local ip: ");
+    Serial.println(WiFi.localIP());
   }
+  
 #else
   Ethernet.begin(mac, ip);
   DEBUG_PRINTLN(Ethernet.localIP());
