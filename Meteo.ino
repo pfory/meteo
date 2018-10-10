@@ -167,7 +167,7 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 ADC_MODE(ADC_VCC);
 
 byte status=0;
-float versionSW                           = 1.68;
+float versionSW                           = 1.69;
 char versionSWString[]                    = "METEO v"; //SW name & version
 uint32_t heartBeat                        = 10;
 
@@ -357,7 +357,7 @@ void setup() {
   // DEBUG_PRINTLN(timeStatus());
 
   if (timeStatus()== timeNotSet) {
-    ESP.reset();
+    //ESP.reset();
   }
  
   //while(timeStatus()== timeNotSet)
