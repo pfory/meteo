@@ -9,10 +9,27 @@
 //3.3
 //GND
 
+#define verbose
+#ifdef verbose
+ #define PORTSPEED 115200
+ #define DEBUG_PRINT(x)         Serial.print (x)
+ #define DEBUG_PRINTDEC(x)      Serial.print (x, DEC)
+ #define DEBUG_PRINTLN(x)       Serial.println (x)
+ #define DEBUG_PRINTF(x, y)     Serial.printf (x, y)
+ #define SERIAL_BEGIN           Serial.begin(PORTSPEED)
+#else
+ #define DEBUG_PRINT(x)
+ #define DEBUG_PRINTDEC(x)
+ #define DEBUG_PRINTLN(x)
+ #define DEBUG_PRINTF(x, y)
+ #define SERIAL_BEGIN
+#endif 
+
 #include <Wire.h>
 //#include "i2c.h"
-#include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
+#include <PubSubClient.h>
+//#include "Adafruit_MQTT.h"
+//#include "Adafruit_MQTT_Client.h"
 #include <TimeLib.h>
 #include <Timezone.h>
 #include <WiFiClient.h>
@@ -24,6 +41,7 @@
 #include <WiFiManager.h> 
 #include <FS.h>          //this needs to be first
 #include <Ticker.h>
+#include "Sender.h"
 
 WiFiManager wifiManager;
 
@@ -37,22 +55,6 @@ void tick()
   digitalWrite(BUILTIN_LED, !state);     // set pin to the opposite state
 }
 
-#define verbose
-#ifdef verbose
- #define DEBUG_PRINT(x)         Serial.print (x)
- #define DEBUG_PRINTDEC(x)      Serial.print (x, DEC)
- #define DEBUG_PRINTLN(x)       Serial.println (x)
- #define DEBUG_PRINTF(x, y)     Serial.printf (x, y)
- #define PORTSPEED 115200
- #define SERIAL_BEGIN           Serial.begin(PORTSPEED)
-#else
- #define DEBUG_PRINT(x)
- #define DEBUG_PRINTDEC(x)
- #define DEBUG_PRINTLN(x)
- #define DEBUG_PRINTF(x, y)
- #define SERIAL_BEGIN
-#endif 
-
 bool isDebugEnabled()
 {
 #ifdef verbose
@@ -60,7 +62,6 @@ bool isDebugEnabled()
 #endif // verbose
   return false;
 }
-
 
 static const char ntpServerName[] = "tik.cesnet.cz";
 //const int timeZone = 2;     // Central European Time
@@ -72,9 +73,11 @@ Timezone CE(CEST, CET);
 WiFiClient client;
 #define SDAPIN D6 //- GPI12 on ESP-201 module
 #define SCLPIN D5 //- GPI14 on ESP-201 module
-char static_ip[16] = "192.168.1.132";
-char static_gw[16] = "192.168.1.1";
-char static_sn[16] = "255.255.255.0";
+
+char                  static_ip[16]        = "192.168.1.132";
+char                  static_gw[16]        = "192.168.1.1";
+char                  static_sn[16]        = "255.255.255.0";
+
 ESP8266WebServer server(80);
 WiFiUDP EthernetUdp;
 unsigned int localPort = 8888;  // local port to listen for UDP packets
@@ -89,52 +92,26 @@ SI7021 si7021;
 #define DRD_TIMEOUT       1
 // RTC Memory Address for the DoubleResetDetector to use
 #define DRD_ADDRESS       0
-
 DoubleResetDetector drd(DRD_TIMEOUT, DRD_ADDRESS);
 
 #define WIFIENADDR        1
 #define RTCVALIDFLAG      0xCAFEBABE
 #define CFGFILE "/config.json"
 
-char mqtt_server[40]    = "192.168.1.56";
-char mqtt_port[6]       = "1883";
-char mqtt_username[40];
-char mqtt_key[20];
-char mqtt_base[60];
+char                  mqtt_server[40]      = "192.168.1.56";
+uint16_t              mqtt_port            = 1883;
+char                  mqtt_username[40];
+char                  mqtt_key[20];
+char                  mqtt_base[60];
+String                my_ssid;
+String                my_psk;
 
 bool shouldSaveConfig = false;
-
-
-#define AIO_SERVER      "192.168.1.56"
-#define AIO_SERVERPORT  1883
-#define AIO_USERNAME    "datel"
-#define AIO_KEY         "hanka12"
 
 float                 humidity, tempSI7021, dewPoint;
 bool                  SI7021Present        = false;
 
 #define PORTALTIMEOUT 30
-
-String my_ssid;
-String my_psk;
-
-
-Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
-
-#define MQTTBASE "/home/MeteoTest/"
-
-/****************************** Feeds ***************************************/
-Adafruit_MQTT_Publish _temperature             = Adafruit_MQTT_Publish(&mqtt, MQTTBASE "Temperature");
-Adafruit_MQTT_Publish _pressure                = Adafruit_MQTT_Publish(&mqtt, MQTTBASE "Press");
-Adafruit_MQTT_Publish _temperature085          = Adafruit_MQTT_Publish(&mqtt, MQTTBASE "Temp085");
-Adafruit_MQTT_Publish _humidity                = Adafruit_MQTT_Publish(&mqtt, MQTTBASE "Humidity");
-Adafruit_MQTT_Publish _tempSI7021              = Adafruit_MQTT_Publish(&mqtt, MQTTBASE "Temp7021");
-Adafruit_MQTT_Publish _dewpoint                = Adafruit_MQTT_Publish(&mqtt, MQTTBASE "DewPoint");
-Adafruit_MQTT_Publish _versionSW               = Adafruit_MQTT_Publish(&mqtt, MQTTBASE "VersionSW");
-Adafruit_MQTT_Publish _napeti                  = Adafruit_MQTT_Publish(&mqtt, MQTTBASE "Napeti");
-Adafruit_MQTT_Subscribe restart                = Adafruit_MQTT_Subscribe(&mqtt, MQTTBASE "restart");
-Adafruit_MQTT_Publish _hb                      = Adafruit_MQTT_Publish(&mqtt, MQTTBASE "HeartBeat");
-
 
 #include <OneWire.h>
 #include <DallasTemperature.h>
@@ -145,7 +122,7 @@ DeviceAddress tempDeviceAddress;
 #define               NUMBER_OF_DEVICES     1
 const unsigned long   measTime            = 750; //in ms
 float                 temperature         = 0.f;
-const unsigned long   measDelay           = 5000; //in ms
+const unsigned long   measDelay           = 60000; //in ms
 unsigned long         lastMeas            = 0;
 bool                  DS18B20Present      = false;
 
@@ -225,8 +202,6 @@ void setup() {
   DEBUG_PRINTLN(versionSW);
   //set led pin as output
   pinMode(BUILTIN_LED, OUTPUT);
-  // start ticker with 0.5 because we start in AP mode and try to connect
-  ticker.attach(0.6, tick);
   
   DEBUG_PRINTLN(ESP.getResetReason());
   if (ESP.getResetReason()=="Software/System restart") {
@@ -245,38 +220,20 @@ void setup() {
     heartBeat=7;
   }
  
+  bool validConf = readConfig();
+  if (!validConf)
+    DEBUG_PRINTLN(F("ERROR config corrupted"));
   
-  if (shouldStartConfig()) {
-    // uint32_t tmp;
-    // ESP.rtcUserMemoryRead(WIFIENADDR, &tmp, sizeof(tmp));
-
-    // // DIRTY hack to keep track of WAKE_RF_DEFAULT --> find a way to read WAKE_RF_*
-    // if (tmp != RTCVALIDFLAG) {
-      // drd.setRecentlyResetFlag();
-      // tmp = RTCVALIDFLAG;
-      // ESP.rtcUserMemoryWrite(WIFIENADDR, &tmp, sizeof(tmp));
-      // Serial.println(F("reboot RFCAL"));
-      // ESP.deepSleep(100000, WAKE_RFCAL);
-      // delay(500);
-    // } else {
-      // tmp = 0;
-      // ESP.rtcUserMemoryWrite(WIFIENADDR, &tmp, sizeof(tmp));
-    // }
-
-    ticker.attach(1, tick);
+  if (shouldStartConfig(validConf)) {
+   ticker.attach(1, tick);
 
     // rescue if wifi credentials lost because of power loss
-    if (!startConfiguration())
-    {
+    if (!startConfiguration()) {
       // test if ssid exists
-      if (WiFi.SSID() == "" &&
-          my_ssid != "" && my_psk != "")
-      {
+      if (WiFi.SSID() == "" && my_ssid != "" && my_psk != "") {
         connectBackupCredentials();
       }
     }
-    // uint32_t left2sleep = 0;
-    // ESP.rtcUserMemoryWrite(RTCSLEEPADDR, &left2sleep, sizeof(left2sleep));
 
     ticker.detach();
   }
@@ -284,8 +241,7 @@ void setup() {
   WiFi.mode(WIFI_STA);
 
   uint8_t wait = 0;
-  while (WiFi.status() == WL_DISCONNECTED)
-  {
+  while (WiFi.status() == WL_DISCONNECTED) {
     delay(100);
     wait++;
     if (wait > 50)
@@ -337,7 +293,7 @@ void setup() {
     DEBUG_PRINTLN("Sensor missing!!!");
   }
   
-  mqtt.subscribe(&restart);
+  //mqtt.subscribe(&restart);
 
 
   server.on ( "/", handleRoot );
@@ -352,15 +308,6 @@ void setup() {
   setSyncProvider(getNtpTime);
   setSyncInterval(300);
   
-  // DEBUG_PRINT("Time Status after setSyncProvider:");
-  // DEBUG_PRINTLN(timeStatus());
-
-  if (timeStatus()== timeNotSet) {
-    //ESP.reset();
-  }
- 
-  //while(timeStatus()== timeNotSet)
-     ; // wait until the time is set by the sync provider
   printSystemTime();
   
   //OTA
@@ -405,8 +352,6 @@ void setup() {
   ArduinoOTA.begin();
 
   DEBUG_PRINTLN(" Ready");
-  //DEBUG_PRINT("IP address: ");
-  //DEBUG_PRINTLN(WiFi.localIP());
   
   ticker.detach();
   //keep LED on
@@ -478,46 +423,29 @@ void loop() {
 
   if (millis() - milisLastRunMinOld > 60000) {
     milisLastRunMinOld = millis();
-    if (MQTT_connect()) {
-      if (! _hb.publish(heartBeat)) {
-        DEBUG_PRINTLN("Send HB failed");
-      } else {
-        DEBUG_PRINTLN("Send HB OK!");
-      }
-      if (! _versionSW.publish(versionSW)) {
-        DEBUG_PRINTLN(F("Send verSW failed!"));
-      } else {
-        DEBUG_PRINTLN(F("Send verSW OK!"));
-      }
-      if (! _napeti.publish(ESP.getVcc())) {
-        DEBUG_PRINTLN("Send napeti failed");
-      } else {
-        DEBUG_PRINTLN("Send napeti OK!");
-      }
-    }
-    heartBeat++;
+    sendStatisticHA();
   }
 
-  if (MQTT_connect()) {
-    Adafruit_MQTT_Subscribe *subscription;
-    while ((subscription = mqtt.readSubscription(2000))) {
-      if (subscription == &restart) {
-        char *pNew = (char *)restart.lastread;
-        uint32_t pPassw=atol(pNew); 
-        if (pPassw==650419) {
-          DEBUG_PRINT(F("Restart ESP now!"));
-          ESP.restart();
-         } else {
-          DEBUG_PRINT(F("Wrong password."));
-        }
-      }
-    }
-  }
+  // if (MQTT_connect()) {
+    // Adafruit_MQTT_Subscribe *subscription;
+    // while ((subscription = mqtt.readSubscription(2000))) {
+      // if (subscription == &restart) {
+        // char *pNew = (char *)restart.lastread;
+        // uint32_t pPassw=atol(pNew); 
+        // if (pPassw==650419) {
+          // DEBUG_PRINT(F("Restart ESP now!"));
+          // ESP.restart();
+         // } else {
+          // DEBUG_PRINT(F("Wrong password."));
+        // }
+      // }
+    // }
+  // }
   ArduinoOTA.handle();
 }
 
 
-bool shouldStartConfig() { 
+bool shouldStartConfig(bool validConf) { 
 // we make sure that configuration is properly set and we are not woken by
   // RESET button
   // ensure this was called
@@ -541,12 +469,7 @@ bool shouldStartConfig() {
   if (_dblreset) {
     DEBUG_PRINTLN("\Double Reset detected");
   }
-  
-  bool _validConf = readConfig();
-  if (!_validConf) {
-    DEBUG_PRINTLN("ERROR config corrupted");
-  }
-  
+ 
   bool _wifiCred = (WiFi.SSID() != "");
   uint8_t c = 0;
   if (!_wifiCred)
@@ -568,7 +491,7 @@ bool shouldStartConfig() {
   // DEBUG_PRINTLN(_wifiCred);
   // DEBUG_PRINTLN(_poweredOnOffOn);
   
-  if (_validConf && !_dblreset && _wifiCred && !_poweredOnOffOn) {
+  if (validConf && !_dblreset && _wifiCred && !_poweredOnOffOn) {
     DEBUG_PRINTLN(F("Normal mode"));
     return false;
   } // config mode
@@ -580,67 +503,36 @@ bool shouldStartConfig() {
 
 void sendDataHA() {
   printSystemTime();
-  DEBUG_PRINTLN(" I am sending data from Meteo unit to HomeAssistant");
-  if (MQTT_connect()) {
-    if (! _temperature.publish(temperature)) {
-      DEBUG_PRINTLN("Temperature failed");
-    } else {
-      DEBUG_PRINTLN("Temperature OK!");
-    }  
-    if (! _pressure.publish(pressure)) {
-      DEBUG_PRINTLN("Pressure failed");
-    } else {
-      DEBUG_PRINTLN("Pressure OK!");
-    }  
-    if (! _temperature085.publish(temperature085)) {
-      DEBUG_PRINTLN("Temperature085 failed");
-    } else {
-      DEBUG_PRINTLN("Temperature085 OK!");
-    }  
-    if (! _humidity.publish(humidity)) {
-      DEBUG_PRINTLN("Humidity failed");
-    } else {
-      DEBUG_PRINTLN("Humidity OK!");
-    }  
-    if (! _tempSI7021.publish(tempSI7021)) {
-      DEBUG_PRINTLN("failed");
-    } else {
-      DEBUG_PRINTLN("OK!");
-    }  
-    if (! _dewpoint.publish(dewPoint)) {
-      DEBUG_PRINTLN("DewPoint failed");
-    } else {
-      DEBUG_PRINTLN("DewPoint OK!");
-    }  
-  }
+  DEBUG_PRINTLN(" I am sending data from Meteo unit to HA");
+  
+//Adafruit_MQTT_Subscribe restart                = Adafruit_MQTT_Subscribe(&mqtt, MQTTBASE "restart");
+  SenderClass sender;
+  sender.add("Temperature", temperature);
+  sender.add("Press", pressure);
+  sender.add("Temp085", temperature085);
+  sender.add("Humidity", humidity);
+  sender.add("Temp7021", tempSI7021);
+  sender.add("DewPoint", dewPoint);
+  DEBUG_PRINTLN(F("\ncalling MQTT"));
+
+  sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
+}
+
+void sendStatisticHA() {
+  printSystemTime();
+  DEBUG_PRINTLN(" I am sending statistic from Meteo unit to HA");
+
+  SenderClass sender;
+  sender.add("VersionSW", versionSW);
+  sender.add("Napeti",  ESP.getVcc());
+  sender.add("HeartBeat", heartBeat++);
+  sender.add("RSSI", WiFi.RSSI());
+  DEBUG_PRINTLN(F("\ncalling MQTT"));
+  
+  sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
 }
 
  
-bool MQTT_connect() {
-  int8_t ret;
-
-  // Stop if already connected.
-  if (mqtt.connected()) {
-    return true;
-  }
-
-  DEBUG_PRINT("Connecting to MQTT... ");
-
-  uint8_t retries = 3;
-  while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-     DEBUG_PRINTLN(mqtt.connectErrorString(ret));
-     DEBUG_PRINTLN("Retrying MQTT connection in 5 seconds...");
-     mqtt.disconnect();
-     delay(5000);  // wait 5 seconds
-     retries--;
-     if (retries == 0) {
-       return false;
-     }
-  }
-  DEBUG_PRINTLN("MQTT Connected!");
-  return true;
-}
-
 void generateHTML() {
   DEBUG_PRINTLN("new client");
   // an http request ends with a blank line
@@ -795,72 +687,6 @@ float calcDewPoint (float humidity, float temperature)
 }
 
 
-bool readConfig() {
-  DEBUG_PRINT(F("Mounting FS..."));
-
-  if (SPIFFS.begin()) {
-    DEBUG_PRINTLN(F(" mounted!"));
-    if (SPIFFS.exists(CFGFILE)) {
-      // file exists, reading and loading
-      DEBUG_PRINTLN(F("Reading config file"));
-      File configFile = SPIFFS.open(CFGFILE, "r");
-      if (configFile) {
-        DEBUG_PRINTLN(F("Opened config file"));
-        size_t size = configFile.size();
-        // Allocate a buffer to store contents of the file.
-        std::unique_ptr<char[]> buf(new char[size]);
-
-        configFile.readBytes(buf.get(), size);
-        DynamicJsonBuffer jsonBuffer;
-        JsonObject &json = jsonBuffer.parseObject(buf.get());
-
-        if (json.success()) {
-          DEBUG_PRINTLN(F("Parsed json"));
-
-          // if (json.containsKey("Name"))
-            // strcpy(my_name, json["Name"]);
-          // if (json.containsKey("Token"))
-            // strcpy(my_token, json["Token"]);
-          // if (json.containsKey("Server"))
-            // strcpy(my_server, json["Server"]);
-          // if (json.containsKey("Sleep"))
-            // my_sleeptime = json["Sleep"];
-          // if (json.containsKey("API"))
-            // my_api = json["API"];
-          // if (json.containsKey("Port"))
-            // my_port = json["Port"];
-          // if (json.containsKey("URL"))
-            // strcpy(my_url, json["URL"]);
-          // if (json.containsKey("Vfact"))
-            // my_vfact = json["Vfact"];
-
-          if (json.containsKey("SSID")) {
-            my_ssid = (const char *)json["SSID"];
-          }
-          if (json.containsKey("PSK")) {
-            my_psk = (const char *)json["PSK"];
-          }
-          DEBUG_PRINTLN(F("Parsed config:"));
-          if (isDebugEnabled)
-            json.printTo(Serial);
-          return true;
-        }
-        else {
-          DEBUG_PRINTLN(F("ERROR: failed to load json config"));
-          return false;
-        }
-      }
-      DEBUG_PRINTLN(F("ERROR: unable to open config file"));
-    } else {
-      DEBUG_PRINTLN(F("ERROR: config file not exist"));
-    }
-  } else {
-    DEBUG_PRINTLN(F(" ERROR: failed to mount FS!"));
-  }
-  return false;
-}
-
-
 bool startConfiguration()
 {
 
@@ -871,11 +697,11 @@ bool startConfiguration()
   wifiManager.setBreakAfterConfig(true);
 
                                    
-  WiFiManagerParameter custom_mqtt_server("server", "mqtt server", mqtt_server, 40);
-  WiFiManagerParameter custom_mqtt_port("port", "mqtt port", mqtt_port, 5);
-  WiFiManagerParameter custom_mqtt_uname("uname", "mqtt username", mqtt_username, 40);
-  WiFiManagerParameter custom_mqtt_key("key", "mqtt password", mqtt_key, 20);
-  WiFiManagerParameter custom_mqtt_base("base", "mqtt topic", mqtt_base, 60);
+  WiFiManagerParameter custom_mqtt_server("server", "MQLL server", mqtt_server, 40);
+  WiFiManagerParameter custom_mqtt_port("port", "MQTT server port", String(mqtt_port).c_str(), 5);
+  WiFiManagerParameter custom_mqtt_uname("uname", "MQTT username", mqtt_username, 40);
+  WiFiManagerParameter custom_mqtt_key("key", "MQTT password", mqtt_key, 20);
+  WiFiManagerParameter custom_mqtt_base("base", "MQTT topic", mqtt_base, 60);
 
   //set static ip
   IPAddress _ip,_gw,_sn;
@@ -928,13 +754,13 @@ bool connectBackupCredentials()
 
 bool saveConfig()
 {
-  DEBUG_PRINTLN(F("saving config..."));
+  DEBUG_PRINTLN(F("Saving config..."));
 
   // if SPIFFS is not usable
   if (!SPIFFS.begin() || !SPIFFS.exists(CFGFILE) ||
       !SPIFFS.open(CFGFILE, "w"))
   {
-    DEBUG_PRINTLN(F("\nneed to format SPIFFS: "));
+    DEBUG_PRINTLN(F("Need to format SPIFFS: "));
     SPIFFS.end();
     SPIFFS.begin();
     DEBUG_PRINTLN(SPIFFS.format());
@@ -943,36 +769,92 @@ bool saveConfig()
   DynamicJsonBuffer jsonBuffer;
   JsonObject &json = jsonBuffer.createObject();
 
-  // json["Name"] = my_name;
-  // json["Token"] = my_token;
-  // json["Sleep"] = my_sleeptime;
-  // // first reboot is for test
-  // my_sleeptime = 1;
-  // json["Server"] = my_server;
-  // json["API"] = my_api;
-  // json["Port"] = my_port;
-  // json["URL"] = my_url;
-  // json["Vfact"] = my_vfact;
+  json["MQTT_server"] = mqtt_server;
+  json["MQTT_port"]   = mqtt_port;
+  json["MQTT_uname"]  = mqtt_username;
+  json["MQTT_pwd"]    = mqtt_key;
+  json["MQTT_base"]   = mqtt_base;
 
   // Store current Wifi credentials
-  json["SSID"] = WiFi.SSID();
-  json["PSK"] = WiFi.psk();
+  json["SSID"]        = WiFi.SSID();
+  json["PSK"]         = WiFi.psk();
 
   File configFile = SPIFFS.open(CFGFILE, "w+");
-  if (!configFile)
-  {
-    DEBUG_PRINTLN(F("failed to open config file for writing"));
+  if (!configFile) {
+    DEBUG_PRINTLN(F("Failed to open config file for writing"));
     SPIFFS.end();
     return false;
-  }
-  else
-  {
-    if (isDebugEnabled)
+  } else {
+    if (isDebugEnabled) {
       json.printTo(Serial);
+    }
     json.printTo(configFile);
     configFile.close();
     SPIFFS.end();
-    DEBUG_PRINTLN(F("saved successfully"));
+    DEBUG_PRINTLN(F("Saved successfully"));
     return true;
   }
+}
+
+bool readConfig() {
+  DEBUG_PRINT(F("Mounting FS..."));
+
+  if (SPIFFS.begin()) {
+    DEBUG_PRINTLN(F(" mounted!"));
+    if (SPIFFS.exists(CFGFILE)) {
+      // file exists, reading and loading
+      DEBUG_PRINTLN(F("Reading config file"));
+      File configFile = SPIFFS.open(CFGFILE, "r");
+      if (configFile) {
+        DEBUG_PRINTLN(F("Opened config file"));
+        size_t size = configFile.size();
+        // Allocate a buffer to store contents of the file.
+        std::unique_ptr<char[]> buf(new char[size]);
+
+        configFile.readBytes(buf.get(), size);
+        DynamicJsonBuffer jsonBuffer;
+        JsonObject &json = jsonBuffer.parseObject(buf.get());
+
+        if (json.success()) {
+          DEBUG_PRINTLN(F("Parsed json"));
+          
+          if (json.containsKey("MQTT_server")) {
+            strcpy(mqtt_server, json["MQTT_server"]);
+          }
+          if (json.containsKey("MQTT_port")) {
+            mqtt_port = json["MQTT_port"];
+          }
+          if (json.containsKey("MQTT_uname")) {
+            strcpy(mqtt_username, json["MQTT_uname"]);
+          }
+          if (json.containsKey("MQTT_pwd")) {
+            strcpy(mqtt_key, json["MQTT_pwd"]);
+          }
+          if (json.containsKey("MQTT_base")) {
+            strcpy(mqtt_base, json["MQTT_base"]);
+          }
+          if (json.containsKey("SSID")) {
+            my_ssid = (const char *)json["SSID"];
+          }
+          if (json.containsKey("PSK")) {
+            my_psk = (const char *)json["PSK"];
+          }
+          DEBUG_PRINTLN(F("Parsed config:"));
+          if (isDebugEnabled)
+            json.printTo(Serial);
+          return true;
+        }
+        else {
+          DEBUG_PRINTLN(F("ERROR: failed to load json config"));
+          return false;
+        }
+      }
+      DEBUG_PRINTLN(F("ERROR: unable to open config file"));
+    } else {
+      DEBUG_PRINTLN(F("ERROR: config file not exist"));
+    }
+  } else {
+    DEBUG_PRINTLN(F(" ERROR: failed to mount FS!"));
+  }
+  return false;
 }
