@@ -1,3 +1,14 @@
+//BMP085   - pressure sensor
+//DS18B20  - temperature sensor
+//SI7021   - temperature and humidity sensor
+
+//Pinout NODEMCU 1.0
+//D4 - DS18B20
+//D5 - SCL
+//D6 - SDA
+//3.3
+//GND
+
 #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
 
 //needed for library
@@ -61,8 +72,8 @@ char                  mqtt_server[40]       = "192.168.1.56";
 uint16_t              mqtt_port             = 1883;
 char                  mqtt_username[40]     = "datel";
 char                  mqtt_key[20]          = "hanka12";
-char                  mqtt_base[60]         = "/home/MeteoTest";
-char                  static_ip[16]         = "192.168.1.134";
+char                  mqtt_base[60]         = "/home/Meteo";
+char                  static_ip[16]         = "192.168.1.102";
 char                  static_gw[16]         = "192.168.1.1";
 char                  static_sn[16]         = "255.255.255.0";
 
@@ -77,11 +88,9 @@ float                 humidity, tempSI7021, dewPoint;
 bool                  SI7021Present        = false;
 
 const unsigned long   sendDelay             = 30000; //in ms
-unsigned long         lastSend              = 0;
 const unsigned long   sendStatDelay         = 60000;
-unsigned long         lastStatSend          = 0;
     
-float versionSW                             = 1.71;
+float versionSW                             = 1.8;
 char versionSWString[]                      = "METEO v"; //SW name & version
 uint32_t heartBeat                          = 0;
 
@@ -102,10 +111,13 @@ Ticker ticker;
 #define SDAPIN D6 //- GPI12 on ESP-201 module
 #define SCLPIN D5 //- GPI14 on ESP-201 module
 
+#include <timer.h>
+auto timer = timer_create_default(); // create a timer with default settings
+Timer<> default_timer; // save as above
 
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#define               ONE_WIRE_BUS          D7 //D4
+#define               ONE_WIRE_BUS          D4 //D7
 OneWire onewire(ONE_WIRE_BUS); // pin for onewire DALLAS bus
 DallasTemperature dsSensors(&onewire);
 DeviceAddress tempDeviceAddress;
@@ -113,8 +125,15 @@ DeviceAddress tempDeviceAddress;
 const unsigned long   measTime            = 750; //in ms
 float                 temperature         = 0.f;
 const unsigned long   measDelay           = 5000; //in ms
-unsigned long         lastMeas            = 0;
 bool                  DS18B20Present      = false;
+
+#include <Adafruit_BMP085.h> 
+Adafruit_BMP085 bmp;
+float                 high_above_sea      = 369.0;
+float                 pressure            = 0.f;
+float                 temperature085      = 0.f;
+bool                  BMP085Present       = false;
+
 
 #ifdef serverHTTP
 void handleRoot() {
@@ -245,7 +264,7 @@ void setup() {
   WiFiManagerParameter custom_mqtt_port("mqtt_port", "MQTT server port", String(mqtt_port).c_str(), 5);
   WiFiManagerParameter custom_mqtt_uname("mqtt_uname", "MQTT username", mqtt_username, 40);
   WiFiManagerParameter custom_mqtt_key("mqtt_key", "MQTT password", mqtt_key, 20);
-  WiFiManagerParameter custom_mqtt_base("mqtt_base", "MQTT topic end with /", mqtt_base, 60);
+  WiFiManagerParameter custom_mqtt_base("mqtt_base", "MQTT topic end without /", mqtt_base, 60);
 
   wifiManager.addParameter(&custom_mqtt_server);
   wifiManager.addParameter(&custom_mqtt_port);
@@ -356,7 +375,7 @@ void setup() {
 
   Wire.begin();
   
-  DEBUG_PRINT("Probe SI7021: ");
+  DEBUG_PRINT("\nProbe SI7021: ");
   if (si7021.begin(SDAPIN, SCLPIN)) {
     SI7021Present = true;
   }
@@ -386,7 +405,10 @@ void setup() {
     DEBUG_PRINTLN("Sensor missing!!!");
   }
 
-
+  //setup timers
+  timer.every(measDelay, meass);
+  timer.every(sendDelay, sendDataHA);
+  timer.every(sendStatDelay, sendStatisticHA);
 
   DEBUG_PRINTLN(" Ready");
  
@@ -397,84 +419,81 @@ void setup() {
 
 
 
-
-
 void loop() {
+  timer.tick(); // tick the timer
 #ifdef serverHTTP
   server.handleClient();
 #endif
 
-  if (millis() - lastMeas >= measDelay) {
-    lastMeas = millis();
-    digitalWrite(BUILTIN_LED, LOW);
-    
-    if (DS18B20Present) {
-      dsSensors.requestTemperatures(); // Send the command to get temperatures
-      delay(measTime);
-      if (dsSensors.getCheckForConversion()==true) {
-        temperature = dsSensors.getTempCByIndex(0);
-      }
-      DEBUG_PRINTLN("-------------");
-      DEBUG_PRINT("Temperature DS18B20: ");
-      DEBUG_PRINT(temperature); 
-      DEBUG_PRINTLN(" *C");
-    } else {
-      temperature = 0.0; //dummy
-    }
-    
-    if (SI7021Present) {
-      humidity=si7021.getHumidityPercent();
-      tempSI7021=si7021.getCelsiusHundredths() / 100;
-      //si7021.triggerMeasurement();
-
-      if (humidity>100) {
-        humidity = 100;
-      }
-      DEBUG_PRINT("Temperature SI7021: ");
-      DEBUG_PRINT(tempSI7021);
-      DEBUG_PRINTLN(" *C");
-      DEBUG_PRINT("Humidity SI7021: ");
-      DEBUG_PRINT(humidity);
-      DEBUG_PRINTLN(" %Rh");
-    } else {
-      humidity = 0.0;    //dummy
-      tempSI7021 = 0.0;  //dummy
-    }
-    
-    if (BMP085Present) {
-      DEBUG_PRINT("Temperature BMP085: ");
-      temperature085 = bmp.readTemperature();
-      pressure = bmp.readSealevelPressure(high_above_sea);
-      DEBUG_PRINT(temperature085);
-      DEBUG_PRINTLN(" *C");
-      DEBUG_PRINT("Pressure: ");
-      DEBUG_PRINT(pressure);
-      DEBUG_PRINTLN(" Pa");
-    } else {
-      temperature085 = 0.0;  //dummy
-      pressure = 0;     //Pa - dummy
-    }
-    
-    dewPoint = calcDewPoint(humidity, temperature);
-    
-    digitalWrite(BUILTIN_LED, HIGH);
-  }
-
-
-
-  if (millis() - lastSend >= sendDelay) {
-    lastSend = millis();
-    sendDataHA();
-  }
-
-  if (millis() - lastStatSend > sendStatDelay) {
-    lastStatSend = millis();
-    sendStatisticHA();
-  }
-
 #ifdef ota
   ArduinoOTA.handle();
 #endif
+}
+
+
+bool meass(void *) {
+  digitalWrite(BUILTIN_LED, LOW);
+  
+  if (DS18B20Present) {
+    dsSensors.requestTemperatures(); // Send the command to get temperatures
+    delay(measTime);
+    if (dsSensors.getCheckForConversion()==true) {
+      temperature = dsSensors.getTempCByIndex(0);
+    }
+    DEBUG_PRINTLN("-------------");
+    DEBUG_PRINT("Temperature DS18B20: ");
+    DEBUG_PRINT(temperature); 
+    DEBUG_PRINTLN(" *C");
+  } else {
+    temperature = 0.0; //dummy
+  }
+  
+  if (SI7021Present) {
+    humidity=si7021.getHumidityPercent();
+    tempSI7021=si7021.getCelsiusHundredths() / 100;
+    //si7021.triggerMeasurement();
+
+    if (humidity>100) {
+      humidity = 100;
+    }
+    DEBUG_PRINT("Temperature SI7021: ");
+    DEBUG_PRINT(tempSI7021);
+    DEBUG_PRINTLN(" *C");
+    DEBUG_PRINT("Humidity SI7021: ");
+    DEBUG_PRINT(humidity);
+    DEBUG_PRINTLN(" %Rh");
+  } else {
+    humidity = 0.0;    //dummy
+    tempSI7021 = 0.0;  //dummy
+  }
+  
+  if (BMP085Present) {
+    DEBUG_PRINT("Temperature BMP085: ");
+    temperature085 = bmp.readTemperature();
+    pressure = bmp.readSealevelPressure(high_above_sea);
+    DEBUG_PRINT(temperature085);
+    DEBUG_PRINTLN(" *C");
+    DEBUG_PRINT("Pressure: ");
+    DEBUG_PRINT(pressure);
+    DEBUG_PRINTLN(" Pa");
+  } else {
+    temperature085 = 0.0;  //dummy
+    pressure = 0;     //Pa - dummy
+  }
+  
+  dewPoint = calcDewPoint(humidity, temperature);
+  
+  digitalWrite(BUILTIN_LED, HIGH);
+
+  return true;
+}
+
+float calcDewPoint (float humidity, float temperature)  
+{  
+    float logEx;  
+    logEx = 0.66077 + (7.5 * temperature) / (237.3 + temperature)  
+            + (log10(humidity) - 2);  
+    return (logEx - 0.66077) * 237.3 / (0.66077 + 7.5 - logEx);  
 }
 
 void validateInput(const char *input, char *output)
@@ -619,8 +638,8 @@ bool readConfig() {
   return false;
 }
 
-
-void sendDataHA() {
+bool sendDataHA(void *) {
+  digitalWrite(BUILTIN_LED, LOW);
   printSystemTime();
   DEBUG_PRINTLN(F(" - I am sending data to HA"));
   
@@ -635,9 +654,12 @@ void sendDataHA() {
   DEBUG_PRINTLN(F("Calling MQTT"));
 
   sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
+  digitalWrite(BUILTIN_LED, HIGH);
+  return true;
 }
 
-void sendStatisticHA() {
+bool sendStatisticHA(void *) {
+  digitalWrite(BUILTIN_LED, LOW);
   printSystemTime();
   DEBUG_PRINTLN(F(" - I am sending statistic to HA"));
 
@@ -649,6 +671,8 @@ void sendStatisticHA() {
   DEBUG_PRINTLN(F("Calling MQTT"));
   
   sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
+  digitalWrite(BUILTIN_LED, HIGH);
+  return true;
 }
 
 
