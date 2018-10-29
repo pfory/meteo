@@ -90,7 +90,7 @@ bool                  SI7021Present        = false;
 const unsigned long   sendDelay             = 30000; //in ms
 const unsigned long   sendStatDelay         = 60000;
     
-float versionSW                             = 1.8;
+float versionSW                             = 1.81;
 char versionSWString[]                      = "METEO v"; //SW name & version
 uint32_t heartBeat                          = 0;
 
@@ -278,6 +278,7 @@ void setup() {
   
   wifiManager.setTimeout(30);
   wifiManager.setConnectTimeout(10); 
+  wifiManager.setConfigPortalTimeout(60);
   //wifiManager.setBreakAfterConfig(true);
   
   //set config save notify callback
