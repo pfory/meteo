@@ -1,4 +1,4 @@
-nahrát bin do /home/pi
+﻿nahrát bin do /home/pi
 upravit verzi XXXX
 spustit v příkazové řádce
 
