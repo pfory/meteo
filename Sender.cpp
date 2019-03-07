@@ -1,8 +1,12 @@
 #include "Sender.h"
 #include <PubSubClient.h>
 
+//DynamicJsonDocument doc(1024);
+
+
 SenderClass::SenderClass() {
-    _jsonVariant = _jsonBuffer.createObject();
+    //JsonVariant variant = doc.as<JsonVariant>();
+    _jsonVariant = doc.to<JsonVariant>();
 }
 void SenderClass::add(String id, float value) {
     _jsonVariant[id] = value;
@@ -78,12 +82,15 @@ bool SenderClass::sendMQTT(String server, uint16_t port, String username, String
         }
     }
     //MQTT publish values
-    for (const auto &kv : _jsonVariant.as<JsonObject>()) {
-        DEBUG_PRINTLN("MQTT publish: " + name + "/" + kv.key + "/" + kv.value.as<String>());
-        _mqttClient.publish((name + "/" + kv.key).c_str(), kv.value.as<String>().c_str());
-        _mqttClient.loop(); //This should be called regularly to allow the client to process incoming messages and maintain its connection to the server.
+    for (JsonPair kv : doc.as<JsonObject>()) {
+      DEBUG_PRINTLN("MQTT publish: " + name + "/" + kv.key().c_str() + "/" + kv.value().as<char*>());
+      _mqttClient.publish((name + "/" + kv.key().c_str()).c_str(), kv.value().as<String>().c_str());
+      //_mqttClient.publish((name + "/" + kv.key).c_str(), kv.value.as<String>().c_str());
+      _mqttClient.loop(); //This should be called regularly to allow the client to process incoming messages and maintain its connection to the server.
+      // Serial.println(kv.key().c_str());
+      // Serial.println(kv.value().as<char*>());
     }
-
+    
     DEBUG_PRINTLN(F("Closing MQTT connection"));
     _mqttClient.disconnect();
     delay(100); // allow gracefull session close

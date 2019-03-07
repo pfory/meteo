@@ -15,18 +15,11 @@
 
 #define verbose
 #ifdef verbose
- #define PORTSPEED 115200
  #define DEBUG_PRINT(x)         Serial.print (x)
- #define DEBUG_PRINTDEC(x)      Serial.print (x, DEC)
  #define DEBUG_PRINTLN(x)       Serial.println (x)
- #define DEBUG_PRINTF(x, y)     Serial.printf (x, y)
- #define SERIAL_BEGIN           Serial.begin(PORTSPEED)
 #else
  #define DEBUG_PRINT(x)
- #define DEBUG_PRINTDEC(x)
  #define DEBUG_PRINTLN(x)
- #define DEBUG_PRINTF(x, y)
- #define SERIAL_BEGIN
 #endif 
 
 class SenderClass
@@ -46,8 +39,10 @@ private:
   PubSubClient _mqttClient;
 
   // StaticJsonBuffer<200> _jsonBuffer;
-  DynamicJsonBuffer _jsonBuffer;
+  //DynamicJsonBuffer _jsonBuffer;
   // JsonObject data;
+  //DynamicJsonDocument doc(1024);
+  StaticJsonDocument<1024> doc;
   JsonVariant _jsonVariant;
 };
 
