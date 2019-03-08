@@ -276,9 +276,9 @@ void setup() {
   //useful to make it all retry or go to sleep
   //in seconds
   
-  wifiManager.setTimeout(30);
-  wifiManager.setConnectTimeout(10); 
-  wifiManager.setConfigPortalTimeout(60);
+  //wifiManager.setTimeout(30);
+  //wifiManager.setConnectTimeout(10); 
+  //wifiManager.setConfigPortalTimeout(60);
   //wifiManager.setBreakAfterConfig(true);
   
   //set config save notify callback
