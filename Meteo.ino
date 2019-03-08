@@ -2,7 +2,7 @@
 //DS18B20  - temperature sensor
 //SI7021   - temperature and humidity sensor
 
-//Pinout NODEMCU 1.0
+//Pinout NODEMCU 1.0 !!!!!!!SPIFSS 1M !!!!!!!!!!!!!!!!!!!!!
 //D4 - DS18B20
 //D5 - SCL
 //D6 - SDA
@@ -296,11 +296,11 @@ void setup() {
     delay(5000);
   } 
   
-  validateInput(custom_mqtt_server.getValue(), mqtt_server);
-  mqtt_port = String(custom_mqtt_port.getValue()).toInt();
-  validateInput(custom_mqtt_uname.getValue(), mqtt_username);
-  validateInput(custom_mqtt_key.getValue(), mqtt_key);
-  validateInput(custom_mqtt_base.getValue(), mqtt_base);
+  // validateInput(custom_mqtt_server.getValue(), mqtt_server);
+  // mqtt_port = String(custom_mqtt_port.getValue()).toInt();
+  // validateInput(custom_mqtt_uname.getValue(), mqtt_username);
+  // validateInput(custom_mqtt_key.getValue(), mqtt_key);
+  // validateInput(custom_mqtt_base.getValue(), mqtt_base);
   
   if (shouldSaveConfig) {
     saveConfig();
