@@ -90,9 +90,18 @@ bool                  SI7021Present        = false;
 const unsigned long   sendDelay             = 30000; //in ms
 const unsigned long   sendStatDelay         = 60000;
     
-float versionSW                             = 1.81;
+float versionSW                             = 1.9;
 char versionSWString[]                      = "METEO v"; //SW name & version
 uint32_t heartBeat                          = 0;
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+#define mqtt_auth 1                                         // Set this to 0 to disable authentication
+#define mqtt_user               "datel"                     // Username for mqtt, not required if auth is disabled
+#define mqtt_password           "hanka12"                   // Password for mqtt, not required if auth is disabled
+#define mqtt_topic              "/home/Meteo/restart"           // here you have to set the topic for mqtt
+
 
 ADC_MODE(ADC_VCC);
 
@@ -108,8 +117,8 @@ bool isDebugEnabled()
 #include <Ticker.h>
 Ticker ticker;
 
-#define SDAPIN D6 //- GPI12 on ESP-201 module
-#define SCLPIN D5 //- GPI14 on ESP-201 module
+#define SDAPIN D6
+#define SCLPIN D5
 
 #include <timer.h>
 auto timer = timer_create_default(); // create a timer with default settings
@@ -188,6 +197,26 @@ void tick()
 //flag for saving data
 bool shouldSaveConfig = false;
 
+//MQTT callback
+void callback(char* topic, byte* payload, unsigned int length) {
+  char * pEnd;
+  String val =  String();
+  DEBUG_PRINT("\nMessage arrived [");
+  DEBUG_PRINT(topic);
+  DEBUG_PRINT("] ");
+  for (int i=0;i<length;i++) {
+    DEBUG_PRINT((char)payload[i]);
+    val += (char)payload[i];
+  }
+  DEBUG_PRINTLN();
+ 
+  if (strcmp(topic, "/home/Meteo/restart")==0) {
+    DEBUG_PRINT("RESTART");
+    ESP.restart();
+  }
+}
+
+
 //callback notifying us of the need to save config
 void saveConfigCallback () {
   DEBUG_PRINTLN("Should save config");
@@ -234,84 +263,9 @@ void setup() {
     // WiFi.mode(WIFI_AP);
   // }
   
-  //WiFiManager
-  //Local intialization. Once its business is done, there is no need to keep it around
-  WiFiManager wifiManager;
-  //reset settings - for testing
-  //wifiManager.resetSettings();
-  
-  //wifiManager.setSTAStaticIPConfig(_ip, _gw, _sn);
-  IPAddress _ip,_gw,_sn;
-  _ip.fromString(static_ip);
-  _gw.fromString(static_gw);
-  _sn.fromString(static_sn);
 
-  wifiManager.setSTAStaticIPConfig(_ip, _gw, _sn);
+  setupWifi();
   
-  DEBUG_PRINTLN(_ip);
-  DEBUG_PRINTLN(_gw);
-  DEBUG_PRINTLN(_sn);
-
-  //if (WiFi.SSID()!="") wifiManager.setConfigPortalTimeout(60); //If no access point name has been previously entered disable timeout.
-
-  
-  //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
-  wifiManager.setAPCallback(configModeCallback);
-  
-    //DEBUG_PRINTLN("Double reset detected. Config mode.");
-
-  WiFiManagerParameter custom_mqtt_server("mqtt_server", "MQTT server", mqtt_server, 40);
-  WiFiManagerParameter custom_mqtt_port("mqtt_port", "MQTT server port", String(mqtt_port).c_str(), 5);
-  WiFiManagerParameter custom_mqtt_uname("mqtt_uname", "MQTT username", mqtt_username, 40);
-  WiFiManagerParameter custom_mqtt_key("mqtt_key", "MQTT password", mqtt_key, 20);
-  WiFiManagerParameter custom_mqtt_base("mqtt_base", "MQTT topic end without /", mqtt_base, 60);
-
-  wifiManager.addParameter(&custom_mqtt_server);
-  wifiManager.addParameter(&custom_mqtt_port);
-  wifiManager.addParameter(&custom_mqtt_uname);
-  wifiManager.addParameter(&custom_mqtt_key);
-  wifiManager.addParameter(&custom_mqtt_base);
-
-  //sets timeout until configuration portal gets turned off
-  //useful to make it all retry or go to sleep
-  //in seconds
-  
-  //wifiManager.setTimeout(30);
-  //wifiManager.setConnectTimeout(10); 
-  //wifiManager.setConfigPortalTimeout(60);
-  //wifiManager.setBreakAfterConfig(true);
-  
-  //set config save notify callback
-  wifiManager.setSaveConfigCallback(saveConfigCallback);
-  
-  //fetches ssid and pass and tries to connect
-  //if it does not connect it starts an access point with the specified name
-  //here  "AutoConnectAP"
-  //and goes into a blocking loop awaiting configuration
-  if (!wifiManager.autoConnect("Meteo", "password")) { 
-    DEBUG_PRINTLN("failed to connect and hit timeout");
-    delay(3000);
-    //reset and try again, or maybe put it to deep sleep
-    ESP.reset();
-    delay(5000);
-  } 
-  
-  // validateInput(custom_mqtt_server.getValue(), mqtt_server);
-  // mqtt_port = String(custom_mqtt_port.getValue()).toInt();
-  // validateInput(custom_mqtt_uname.getValue(), mqtt_username);
-  // validateInput(custom_mqtt_key.getValue(), mqtt_key);
-  // validateInput(custom_mqtt_base.getValue(), mqtt_base);
-  
-  if (shouldSaveConfig) {
-    saveConfig();
-  }
-  
-  //if you get here you have connected to the WiFi
-  DEBUG_PRINTLN("CONNECTED");
-  DEBUG_PRINT("Local ip : ");
-  DEBUG_PRINTLN(WiFi.localIP());
-  DEBUG_PRINTLN(WiFi.subnetMask());
-
 #ifdef serverHTTP
   server.on ( "/", handleRoot );
   server.begin();
@@ -406,6 +360,10 @@ void setup() {
     DEBUG_PRINTLN("Sensor missing!!!");
   }
 
+  client.setServer(mqtt_server, mqtt_port);
+  client.setCallback(callback);
+
+  
   //setup timers
   timer.every(measDelay, meass);
   timer.every(sendDelay, sendDataHA);
@@ -425,6 +383,11 @@ void loop() {
 #ifdef serverHTTP
   server.handleClient();
 #endif
+
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
 
 #ifdef ota
   ArduinoOTA.handle();
@@ -774,4 +737,103 @@ void printSystemTime(){
   printDigits(minute());
   printDigits(second());
 #endif
+}
+
+
+void setupWifi() {
+  //WiFiManager
+  //Local intialization. Once its business is done, there is no need to keep it around
+  WiFiManager wifiManager;
+  //reset settings - for testing
+  //wifiManager.resetSettings();
+  
+  //wifiManager.setSTAStaticIPConfig(_ip, _gw, _sn);
+  IPAddress _ip,_gw,_sn;
+  _ip.fromString(static_ip);
+  _gw.fromString(static_gw);
+  _sn.fromString(static_sn);
+
+  wifiManager.setSTAStaticIPConfig(_ip, _gw, _sn);
+  
+  DEBUG_PRINTLN(_ip);
+  DEBUG_PRINTLN(_gw);
+  DEBUG_PRINTLN(_sn);
+
+  //if (WiFi.SSID()!="") wifiManager.setConfigPortalTimeout(60); //If no access point name has been previously entered disable timeout.
+
+  
+  //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
+  wifiManager.setAPCallback(configModeCallback);
+  
+    //DEBUG_PRINTLN("Double reset detected. Config mode.");
+
+  WiFiManagerParameter custom_mqtt_server("mqtt_server", "MQTT server", mqtt_server, 40);
+  WiFiManagerParameter custom_mqtt_port("mqtt_port", "MQTT server port", String(mqtt_port).c_str(), 5);
+  WiFiManagerParameter custom_mqtt_uname("mqtt_uname", "MQTT username", mqtt_username, 40);
+  WiFiManagerParameter custom_mqtt_key("mqtt_key", "MQTT password", mqtt_key, 20);
+  WiFiManagerParameter custom_mqtt_base("mqtt_base", "MQTT topic end without /", mqtt_base, 60);
+
+  wifiManager.addParameter(&custom_mqtt_server);
+  wifiManager.addParameter(&custom_mqtt_port);
+  wifiManager.addParameter(&custom_mqtt_uname);
+  wifiManager.addParameter(&custom_mqtt_key);
+  wifiManager.addParameter(&custom_mqtt_base);
+
+  //sets timeout until configuration portal gets turned off
+  //useful to make it all retry or go to sleep
+  //in seconds
+  
+  //wifiManager.setTimeout(30);
+  //wifiManager.setConnectTimeout(10); 
+  //wifiManager.setConfigPortalTimeout(60);
+  //wifiManager.setBreakAfterConfig(true);
+  
+  //set config save notify callback
+  wifiManager.setSaveConfigCallback(saveConfigCallback);
+  
+  //fetches ssid and pass and tries to connect
+  //if it does not connect it starts an access point with the specified name
+  //here  "AutoConnectAP"
+  //and goes into a blocking loop awaiting configuration
+  if (!wifiManager.autoConnect("Meteo", "password")) { 
+    DEBUG_PRINTLN("failed to connect and hit timeout");
+    delay(3000);
+    //reset and try again, or maybe put it to deep sleep
+    ESP.reset();
+    delay(5000);
+  } 
+  
+  // validateInput(custom_mqtt_server.getValue(), mqtt_server);
+  // mqtt_port = String(custom_mqtt_port.getValue()).toInt();
+  // validateInput(custom_mqtt_uname.getValue(), mqtt_username);
+  // validateInput(custom_mqtt_key.getValue(), mqtt_key);
+  // validateInput(custom_mqtt_base.getValue(), mqtt_base);
+  
+  if (shouldSaveConfig) {
+    saveConfig();
+  }
+  
+  //if you get here you have connected to the WiFi
+  DEBUG_PRINTLN("CONNECTED");
+  DEBUG_PRINT("Local ip : ");
+  DEBUG_PRINTLN(WiFi.localIP());
+  DEBUG_PRINTLN(WiFi.subnetMask());
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    DEBUG_PRINT("\nAttempting MQTT connection...");
+    if (mqtt_auth == 1) {
+      if (client.connect("Meteo", mqtt_user, mqtt_password)) {
+        DEBUG_PRINTLN("connected");
+        client.subscribe(mqtt_topic);
+      } else {
+        DEBUG_PRINT("failed, rc=");
+        DEBUG_PRINT(client.state());
+        DEBUG_PRINTLN(" try again in 5 seconds");
+        delay(5000);
+        setupWifi();
+      }
+    }
+  }
 }
