@@ -90,7 +90,7 @@ bool                  SI7021Present        = false;
 const unsigned long   sendDelay             = 30000; //in ms
 const unsigned long   sendStatDelay         = 60000;
     
-float versionSW                             = 1.9;
+float versionSW                             = 1.91;
 char versionSWString[]                      = "METEO v"; //SW name & version
 uint32_t heartBeat                          = 0;
 
@@ -445,6 +445,11 @@ bool meass(void *) {
     pressure = 0;     //Pa - dummy
   }
   
+  if (humidity == 0 || pressure == 0 || pressure > 106000) {
+    DEBUG_PRINT("RESTART");
+    ESP.restart();
+  }
+
   dewPoint = calcDewPoint(humidity, temperature);
   
   digitalWrite(BUILTIN_LED, HIGH);
