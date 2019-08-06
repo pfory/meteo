@@ -445,10 +445,10 @@ bool meass(void *) {
     pressure = 0;     //Pa - dummy
   }
   
-  if (humidity == 0 || pressure == 0 || pressure > 106000) {
-    DEBUG_PRINT("RESTART");
-    ESP.restart();
-  }
+  // if (humidity == 0 || pressure == 0 || pressure > 106000) {
+    // DEBUG_PRINT("RESTART");
+    // ESP.restart();
+  // }
 
   dewPoint = calcDewPoint(humidity, temperature);
   
@@ -827,10 +827,10 @@ void setupWifi() {
 
 void reconnect() {
   while (!client.connected()) {
-    DEBUG_PRINT("\nAttempting MQTT connection...");
+    //DEBUG_PRINT("\nAttempting MQTT connection...");
     if (mqtt_auth == 1) {
       if (client.connect("Meteo", mqtt_user, mqtt_password)) {
-        DEBUG_PRINTLN("connected");
+        //DEBUG_PRINTLN("connected");
         client.subscribe(mqtt_topic);
       } else {
         DEBUG_PRINT("failed, rc=");
