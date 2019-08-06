@@ -90,7 +90,7 @@ bool                  SI7021Present        = false;
 const unsigned long   sendDelay             = 30000; //in ms
 const unsigned long   sendStatDelay         = 60000;
     
-float versionSW                             = 1.91;
+float versionSW                             = 1.93;
 char versionSWString[]                      = "METEO v"; //SW name & version
 uint32_t heartBeat                          = 0;
 
@@ -445,10 +445,10 @@ bool meass(void *) {
     pressure = 0;     //Pa - dummy
   }
   
-  // if (humidity == 0 || pressure == 0 || pressure > 106000) {
-    // DEBUG_PRINT("RESTART");
-    // ESP.restart();
-  // }
+  if ((SI7021Present && humidity == 0) || (BMP085Present && (pressure == 0 || pressure > 106000))) {
+    DEBUG_PRINT("RESTART");
+    ESP.restart();
+  }
 
   dewPoint = calcDewPoint(humidity, temperature);
   
@@ -609,7 +609,6 @@ bool sendDataHA(void *) {
   printSystemTime();
   DEBUG_PRINTLN(F(" - I am sending data to HA"));
   
-//Adafruit_MQTT_Subscribe restart                = Adafruit_MQTT_Subscribe(&mqtt, MQTTBASE "restart");
   SenderClass sender;
   sender.add("Temperature", temperature);
   sender.add("Press", pressure);
@@ -827,10 +826,10 @@ void setupWifi() {
 
 void reconnect() {
   while (!client.connected()) {
-    //DEBUG_PRINT("\nAttempting MQTT connection...");
+    DEBUG_PRINT("\nAttempting MQTT connection...");
     if (mqtt_auth == 1) {
       if (client.connect("Meteo", mqtt_user, mqtt_password)) {
-        //DEBUG_PRINTLN("connected");
+        DEBUG_PRINTLN("connected");
         client.subscribe(mqtt_topic);
       } else {
         DEBUG_PRINT("failed, rc=");
