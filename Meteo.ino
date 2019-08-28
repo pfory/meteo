@@ -90,7 +90,7 @@ bool                  SI7021Present        = false;
 const unsigned long   sendDelay             = 30000; //in ms
 const unsigned long   sendStatDelay         = 60000;
     
-float versionSW                             = 1.93;
+float versionSW                             = 1.94;
 char versionSWString[]                      = "METEO v"; //SW name & version
 uint32_t heartBeat                          = 0;
 
@@ -211,6 +211,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
   DEBUG_PRINTLN();
  
   if (strcmp(topic, "/home/Meteo/restart")==0) {
+    void * a;
+    heartBeat = 999;
+    sendStatisticHA(a);
+
     DEBUG_PRINT("RESTART");
     ESP.restart();
   }
@@ -379,6 +383,9 @@ void setup() {
   timer.every(sendDelay, sendDataHA);
   timer.every(sendStatDelay, sendStatisticHA);
 
+  void * a;
+  sendStatisticHA(a);
+  
   DEBUG_PRINTLN(" Ready");
  
   ticker.detach();
@@ -456,6 +463,10 @@ bool meass(void *) {
   }
   
   if ((SI7021Present && humidity == 0) || (BMP085Present && (pressure == 0 || pressure > 106000))) {
+    void * a;
+    heartBeat = 998;
+    sendStatisticHA(a);
+
     DEBUG_PRINT("RESTART");
     ESP.restart();
   }
@@ -652,7 +663,7 @@ bool sendStatisticHA(void *) {
 
 
 #ifdef time
--------- NTP code ----------*/
+/*-------- NTP code ----------*/
 
 const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
 byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
