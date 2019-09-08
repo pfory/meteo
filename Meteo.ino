@@ -464,7 +464,18 @@ bool meass(void *) {
   
   if ((SI7021Present && humidity == 0) || (BMP085Present && (pressure == 0 || pressure > 106000))) {
     void * a;
-    heartBeat = 998;
+    if (SI7021Present && humidity == 0) {
+      heartBeat = 998;
+    }
+    if (BMP085Present) {
+      if (pressure == 0) {
+        heartBeat = 997;
+      } else if (pressure > 106000) {
+        heartBeat = 996;
+      } else {
+        heartBeat = 995;
+      }
+    }
     sendStatisticHA(a);
 
     DEBUG_PRINT("RESTART");
