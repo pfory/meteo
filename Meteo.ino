@@ -466,8 +466,7 @@ bool meass(void *) {
     void * a;
     if (SI7021Present && humidity == 0) {
       heartBeat = 998;
-    }
-    if (BMP085Present) {
+    } else if (BMP085Present) {
       if (pressure == 0) {
         heartBeat = 997;
       } else if (pressure > 106000) {
