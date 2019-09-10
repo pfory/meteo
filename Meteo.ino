@@ -90,7 +90,7 @@ bool                  SI7021Present        = false;
 const unsigned long   sendDelay             = 30000; //in ms
 const unsigned long   sendStatDelay         = 60000;
     
-float versionSW                             = 1.94;
+float versionSW                             = 1.95;
 char versionSWString[]                      = "METEO v"; //SW name & version
 uint32_t heartBeat                          = 0;
 
