@@ -56,7 +56,7 @@ static const char* const      mqtt_topic_restart             = "restart";
 #define LCDCOLS     20
 #define LCDROWS     4
 
-#define SEND_DELAY                           10000  //prodleva mezi poslanim dat v ms
+#define SEND_DELAY                           60000  //prodleva mezi poslanim dat v ms
 #define SENDSTAT_DELAY                       60000  //poslani statistiky kazdou minutu
 #define MEAS_DELAY                           5000   //mereni
 
