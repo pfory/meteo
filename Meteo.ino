@@ -127,7 +127,7 @@ void handleRoot() {
       year(), month(), day(), hour(), minute(), second(),
       (int)humidity,
       year(), month(), day(), hour(), minute(), second(),
-      (int)pressure,
+      (int)(round(pressure/100)),
       year(), month(), day(), hour(), minute(), second(),
       dewPoint<0 && dewPoint>-1 ? "-":"",
       (int)dewPoint, 

@@ -2,7 +2,7 @@
 #define CONFIGURATION_H
 
 //SW name & version
-#define     VERSION                          "1.97"
+#define     VERSION                          "1.98"
 #define     SW_NAME                          "METEO"
 
 #define timers
