@@ -2,7 +2,7 @@
 #define CONFIGURATION_H
 
 //SW name & version
-#define     VERSION                          "1.98"
+#define     VERSION                          "1.99"
 #define     SW_NAME                          "METEO"
 
 #define timers
@@ -61,25 +61,5 @@ static const char* const      mqtt_topic_restart             = "restart";
 #define MEAS_DELAY                           5000   //mereni
 
 #define MEAS_TIME                            750 //in ms
-
-
-#define RELAY_ON                             HIGH
-#define RELAY_OFF                            LOW
-
-#define CURRENT4ON                           3.f //3A
-
-#define MAX                                  32767
-#define MIN                                  -32767
-
-#define         CHANNEL_REG_IN_CURRENT          2
-#define         CHANNEL_REG_OUT_CURRENT         1
-#define         CHANNEL_VOLTAGE_SUPPLY          3
-
-#define         MVOLTDILEKADC1                  0.1875
-#define         MVOLTDILEKADC2                  0.1875
-
-#define         MVAMPERIN                       40.f        // 40mV = 1A
-#define         MVAMPEROUT                      100.f       // 100mV = 1A
-
 
 #endif
