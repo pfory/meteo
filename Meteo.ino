@@ -11,28 +11,13 @@
 
 #include "Configuration.h"
 
-#include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
-
-//needed for library
-//#include <DNSServer.h>
-#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
-//#include <FS.h>          //this needs to be first
-#include <Ticker.h>
-#include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
-//#include "DoubleResetDetector.h" // https://github.com/datacute/DoubleResetDetector
-#include "Sender.h"
-#include "SI7021.h"
-#include <Wire.h>
-
 SI7021 si7021;
 
-#define serverHTTP
 #ifdef serverHTTP
 #include <ESP8266WebServer.h>
 ESP8266WebServer server(80);
 #endif
 
-#define time
 #ifdef time
 #include <TimeLib.h>
 #include <Timezone.h>
@@ -59,8 +44,7 @@ PubSubClient client(espClient);
 
 ADC_MODE(ADC_VCC);
 
-bool isDebugEnabled()
-{
+bool isDebugEnabled() {
 #ifdef verbose
   return true;
 #endif // verbose
@@ -68,7 +52,6 @@ bool isDebugEnabled()
 }
 
 //for LED status
-#include <Ticker.h>
 Ticker ticker;
 
 #define SDAPIN D6
@@ -94,6 +77,7 @@ float                 pressure            = 0.f;
 float                 temperature085      = 0.f;
 bool                  BMP085Present       = false;
 
+DoubleResetDetector drd(DRD_TIMEOUT, DRD_ADDRESS);
 
 #ifdef serverHTTP
 void handleRoot() {
@@ -180,6 +164,8 @@ void configModeCallback (WiFiManager *myWiFiManager) {
   ticker.attach(0.2, tick);
 }
 
+WiFiManager wifiManager;
+
 void setup() {
   // put your setup code here, to run once:
   SERIAL_BEGIN;
@@ -190,16 +176,32 @@ void setup() {
   pinMode(BUILTIN_LED, OUTPUT);
   ticker.attach(1, tick);
 
-#ifdef verbose    
-  WiFi.printDiag(Serial);
-#endif
+  WiFi.mode(WIFI_STA); // explicitly set mode, esp defaults to STA+AP
+
+  //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
+  wifiManager.setAPCallback(configModeCallback);
+  wifiManager.setConfigPortalTimeout(CONFIG_PORTAL_TIMEOUT);
+  wifiManager.setConnectTimeout(CONNECT_TIMEOUT);
+
+  if (drd.detectDoubleReset()) {
+    DEBUG_PRINTLN("Double reset detected, starting config portal...");
+    ticker.attach(0.2, tick);
+    if (!wifiManager.startConfigPortal(HOSTNAMEOTA)) {
+      DEBUG_PRINTLN("failed to connect and hit timeout");
+      delay(3000);
+      //reset and try again, or maybe put it to deep sleep
+      ESP.reset();
+      delay(5000);
+    }
+  }
 
   rst_info *_reset_info = ESP.getResetInfoPtr();
   uint8_t _reset_reason = _reset_info->reason;
   DEBUG_PRINT("Boot-Mode: ");
   DEBUG_PRINTLN(_reset_reason);
   heartBeat = _reset_reason;
-  
+
+ 
  /*
  REASON_DEFAULT_RST             = 0      normal startup by power on 
  REASON_WDT_RST                 = 1      hardware watch dog reset 
@@ -213,22 +215,8 @@ void setup() {
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
 
-  //WiFiManager
-  WiFiManager wifiManager;
-  
-  IPAddress _ip,_gw,_sn;
-  _ip.fromString(static_ip);
-  _gw.fromString(static_gw);
-  _sn.fromString(static_sn);
+  WiFi.printDiag(Serial);
 
-  wifiManager.setSTAStaticIPConfig(_ip, _gw, _sn);
-  
-  DEBUG_PRINTLN(_ip);
-  DEBUG_PRINTLN(_gw);
-  DEBUG_PRINTLN(_sn);
-
-  wifiManager.setAPCallback(configModeCallback);
-  
   if (!wifiManager.autoConnect(AUTOCONNECTNAME, AUTOCONNECTPWD)) { 
     DEBUG_PRINTLN("failed to connect and hit timeout");
     delay(3000);
@@ -237,6 +225,8 @@ void setup() {
     delay(5000);
   }   
   
+  sendNetInfoMQTT();
+
 #ifdef serverHTTP
   server.on ( "/", handleRoot );
   server.begin();
@@ -323,6 +313,11 @@ void setup() {
   ticker.detach();
   //keep LED on
   digitalWrite(BUILTIN_LED, HIGH);
+
+  drd.stop();
+
+  DEBUG_PRINTLN(F("Setup end."));
+
 }
 
 
@@ -561,16 +556,36 @@ void printSystemTime(){
 }
 
 void reconnect() {
-  while (!client.connected()) {
-    DEBUG_PRINT("\nAttempting MQTT connection...");
-    if (client.connect(mqtt_base, mqtt_username, mqtt_key)) {
-      DEBUG_PRINTLN("connected");
-      client.subscribe((String(mqtt_base) + "/" + String(mqtt_topic_restart)).c_str());
-    } else {
-      DEBUG_PRINT("failed, rc=");
-      DEBUG_PRINT(client.state());
-      DEBUG_PRINTLN(" try again in 5 seconds");
-      delay(5000);
+  // Loop until we're reconnected
+  if (!client.connected()) {
+    if (lastConnectAttempt == 0 || lastConnectAttempt + connectDelay < millis()) {
+      DEBUG_PRINT("Attempting MQTT connection...");
+      // Attempt to connect
+      if (client.connect(mqtt_base, mqtt_username, mqtt_key)) {
+        DEBUG_PRINTLN("connected");
+        client.subscribe((String(mqtt_base) + "/" + String(mqtt_topic_restart)).c_str());
+      } else {
+        lastConnectAttempt = millis();
+        DEBUG_PRINT("failed, rc=");
+        DEBUG_PRINTLN(client.state());
+      }
     }
   }
+}
+
+
+void sendNetInfoMQTT() {
+  digitalWrite(BUILTIN_LED, LOW);
+  //printSystemTime();
+  DEBUG_PRINTLN(F("Net info"));
+
+  SenderClass sender;
+  sender.add("IP",              WiFi.localIP().toString().c_str());
+  sender.add("MAC",             WiFi.macAddress());
+  
+  DEBUG_PRINTLN(F("Calling MQTT"));
+  
+  sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
+  digitalWrite(BUILTIN_LED, HIGH);
+  return;
 }
