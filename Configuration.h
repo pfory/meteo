@@ -3,7 +3,7 @@
 
 //SW name & version
 #define     VERSION                          "1.99"
-#define     SW_NAME                          "METEO"
+#define     SW_NAME                          "Meteo"
 
 #define timers
 #define ota
