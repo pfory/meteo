@@ -17,7 +17,7 @@
 #include <Ticker.h>
 #include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
 #include "Sender.h"
-#include "SI7021/SI7021.h"
+#include "SI7021.h"
 #include <Wire.h>
 #include <Ticker.h>
 
@@ -67,6 +67,7 @@ static const char* const      mqtt_username                  = "datel";
 static const char* const      mqtt_key                       = "hanka12";
 static const char* const      mqtt_base                      = "/home/Meteo";
 static const char* const      mqtt_topic_restart             = "restart";
+static const char* const      mqtt_topic_netinfo             = "netinfo";
 
 uint32_t              connectDelay                = 30000; //30s
 uint32_t              lastConnectAttempt          = 0;  

@@ -142,14 +142,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
     val += (char)payload[i];
   }
   DEBUG_PRINTLN();
- 
-  if (strcmp(topic, "/home/Meteo/restart")==0) {
-    void * a;
-    heartBeat = 999;
-    sendStatisticHA(a);
-
+  
+  if (strcmp(topic, (String(mqtt_base) + "/" + String(mqtt_topic_restart)).c_str())==0) {
     DEBUG_PRINT("RESTART");
     ESP.restart();
+  } else if (strcmp(topic, (String(mqtt_base) + "/" + String(mqtt_topic_netinfo)).c_str())==0) {
+    sendNetInfoMQTT();
   }
 }
 
@@ -469,7 +467,7 @@ bool sendStatisticHA(void *) {
 
 void sendNetInfoMQTT() {
   digitalWrite(BUILTIN_LED, LOW);
-  //printSystemTime();
+  printSystemTime();
   DEBUG_PRINTLN(F("Net info"));
 
   SenderClass sender;
@@ -563,14 +561,6 @@ void sendNTPpacket(IPAddress &address)
 
 #endif
 
-void printSystemTime(){
-#ifdef time
-  char buffer[20];
-  sprintf(buffer, "%02d.%02d.%4d %02d:%02d:%02d", day(), month(), year(), hour(), minute(), second());
-  DEBUG_PRINT(buffer);
-#endif
-}
-
 void reconnect() {
   // Loop until we're reconnected
   if (!client.connected()) {
@@ -587,4 +577,12 @@ void reconnect() {
       }
     }
   }
+}
+
+void printSystemTime() {
+#ifdef time
+  char buffer[20];
+  sprintf(buffer, "%02d.%02d.%4d %02d:%02d:%02d", day(), month(), year(), hour(), minute(), second());
+  DEBUG_PRINT(buffer);
+#endif
 }
