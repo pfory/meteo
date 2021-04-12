@@ -2,7 +2,7 @@
 #define CONFIGURATION_H
 
 //SW name & version
-#define     VERSION                          "1.99"
+#define     VERSION                          "2.00"
 #define     SW_NAME                          "Meteo"
 
 #define timers
@@ -17,7 +17,7 @@
 #include <Ticker.h>
 #include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
 #include "Sender.h"
-#include "SI7021.h"
+#include "SI7021/SI7021.h"
 #include <Wire.h>
 #include <Ticker.h>
 
@@ -66,9 +66,6 @@ static const uint16_t         mqtt_port                      = 1883;
 static const char* const      mqtt_username                  = "datel";
 static const char* const      mqtt_key                       = "hanka12";
 static const char* const      mqtt_base                      = "/home/Meteo";
-// static const char* const      static_ip                      = "192.168.1.102";
-// static const char* const      static_gw                      = "192.168.1.1";
-// static const char* const      static_sn                      = "255.255.255.0";
 static const char* const      mqtt_topic_restart             = "restart";
 
 uint32_t              connectDelay                = 30000; //30s

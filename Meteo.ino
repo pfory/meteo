@@ -2,7 +2,7 @@
 //DS18B20  - temperature sensor
 //SI7021   - temperature and humidity sensor
 
-//Pinout NODEMCU 1.0 !!!!!!!SPIFSS 1M !!!!!!!!!!!!!!!!!!!!!
+//Pinout NODEMCU 1.0
 //D4 - DS18B20
 //D5 - SCL
 //D6 - SDA
@@ -434,7 +434,7 @@ void validateInput(const char *input, char *output)
 bool sendDataHA(void *) {
   digitalWrite(BUILTIN_LED, LOW);
   printSystemTime();
-  DEBUG_PRINTLN(F(" - I am sending data to HA"));
+  DEBUG_PRINTLN(F("Data"));
   
   SenderClass sender;
   sender.add("Temperature", temperature);
@@ -453,7 +453,7 @@ bool sendDataHA(void *) {
 bool sendStatisticHA(void *) {
   digitalWrite(BUILTIN_LED, LOW);
   printSystemTime();
-  DEBUG_PRINTLN(F(" - I am sending statistic to HA"));
+  DEBUG_PRINTLN(F("Statistic"));
 
   SenderClass sender;
   sender.add("VersionSW", VERSION);
@@ -465,6 +465,22 @@ bool sendStatisticHA(void *) {
   sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
   digitalWrite(BUILTIN_LED, HIGH);
   return true;
+}
+
+void sendNetInfoMQTT() {
+  digitalWrite(BUILTIN_LED, LOW);
+  //printSystemTime();
+  DEBUG_PRINTLN(F("Net info"));
+
+  SenderClass sender;
+  sender.add("IP",              WiFi.localIP().toString().c_str());
+  sender.add("MAC",             WiFi.macAddress());
+  
+  DEBUG_PRINTLN(F("Calling MQTT"));
+  
+  sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
+  digitalWrite(BUILTIN_LED, HIGH);
+  return;
 }
 
 
@@ -563,7 +579,7 @@ void reconnect() {
       // Attempt to connect
       if (client.connect(mqtt_base, mqtt_username, mqtt_key)) {
         DEBUG_PRINTLN("connected");
-        client.subscribe((String(mqtt_base) + "/" + String(mqtt_topic_restart)).c_str());
+        client.subscribe((String(mqtt_base) + "/#").c_str());
       } else {
         lastConnectAttempt = millis();
         DEBUG_PRINT("failed, rc=");
@@ -571,21 +587,4 @@ void reconnect() {
       }
     }
   }
-}
-
-
-void sendNetInfoMQTT() {
-  digitalWrite(BUILTIN_LED, LOW);
-  //printSystemTime();
-  DEBUG_PRINTLN(F("Net info"));
-
-  SenderClass sender;
-  sender.add("IP",              WiFi.localIP().toString().c_str());
-  sender.add("MAC",             WiFi.macAddress());
-  
-  DEBUG_PRINTLN(F("Calling MQTT"));
-  
-  sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
-  digitalWrite(BUILTIN_LED, HIGH);
-  return;
 }
