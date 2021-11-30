@@ -1,26 +1,30 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
-//SW name & version
-#define     VERSION                          "2.00"
-#define     SW_NAME                          "Meteo"
-
-#define timers
-#define ota
-#define verbose
-#define serverHTTP
-#define time
-
 #include <DoubleResetDetector.h>      //https://github.com/khoih-prog/ESP_DoubleResetDetector
 #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
 #include <Ticker.h>
 #include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
-#include "Sender.h"
-#include "SI7021.h"
+#include <Sender.h>
+#include <SI7021.h>
 #include <Wire.h>
 #include <Ticker.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <Adafruit_BMP085.h> 
+#include <timer.h>
+#include <Timezone.h>
+#include <TimeLib.h>
 
+//SW name & version
+#define     VERSION                          "2.10"
+#define     SW_NAME                          "Meteo"
+
+#define ota
+#define verbose
+#define serverHTTP
+#define time
 
 #define AUTOCONNECTNAME   HOSTNAMEOTA
 #define AUTOCONNECTPWD    "password"
@@ -28,6 +32,10 @@
 #ifdef ota
 #include <ArduinoOTA.h>
 #define HOSTNAMEOTA   SW_NAME VERSION
+#endif
+
+#ifdef serverHTTP
+#include <ESP8266WebServer.h>
 #endif
 
 #ifdef verbose
@@ -68,10 +76,7 @@ static const char* const      mqtt_key                       = "hanka12";
 static const char* const      mqtt_base                      = "/home/Meteo";
 static const char* const      mqtt_topic_restart             = "restart";
 static const char* const      mqtt_topic_netinfo             = "netinfo";
-
-uint32_t              connectDelay                = 30000; //30s
-uint32_t              lastConnectAttempt          = 0;  
-
+static const char* const      mqtt_config_portal             = "config";
 
 
 #define LCDADDRESS  0x27
@@ -81,6 +86,7 @@ uint32_t              lastConnectAttempt          = 0;
 #define SEND_DELAY                           60000  //prodleva mezi poslanim dat v ms
 #define SENDSTAT_DELAY                       60000  //poslani statistiky kazdou minutu
 #define MEAS_DELAY                           5000   //mereni
+#define CONNECT_DELAY                        5000 //ms
 
 #define MEAS_TIME                            750 //in ms
 
