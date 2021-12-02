@@ -66,7 +66,7 @@
 //SDA                                       D2 //
 //SCL                                       D1 //
 
-#define CONFIG_PORTAL_TIMEOUT 60 //jak dlouho zustane v rezimu AP nez se cip resetuje
+#define CONFIG_PORTAL_TIMEOUT 60 //jak dlouho zustane v rezimu konfigurace
 #define CONNECT_TIMEOUT 120 //jak dlouho se ceka na spojeni nez se aktivuje config portal
 
 static const char* const      mqtt_server                    = "192.168.1.56";
@@ -77,7 +77,7 @@ static const char* const      mqtt_base                      = "/home/Meteo";
 static const char* const      mqtt_topic_restart             = "restart";
 static const char* const      mqtt_topic_netinfo             = "netinfo";
 static const char* const      mqtt_config_portal             = "config";
-
+static const char* const      mqtt_config_portal_stop        = "disconfig";
 
 #define LCDADDRESS  0x27
 #define LCDCOLS     20

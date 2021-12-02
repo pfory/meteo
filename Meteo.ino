@@ -14,7 +14,7 @@
 SI7021 si7021;
 
 #ifdef serverHTTP
-ESP8266WebServer server(80);
+ESP8266WebServer server(81);
 #endif
 
 #ifdef time
@@ -75,42 +75,33 @@ DoubleResetDetector drd(DRD_TIMEOUT, DRD_ADDRESS);
 #ifdef serverHTTP
 void handleRoot() {
 	char temp[600];
-  // DEBUG_PRINT(year());
-  // DEBUG_PRINT(month());
-  // DEBUG_PRINT(day());
-  // DEBUG_PRINT(hour());
-  // DEBUG_PRINT(minute());
-  // DEBUG_PRINT(second());
-  printSystemTime();
-  DEBUG_PRINTLN(" Client request");
+  DEBUG_PRINT("Web client request...");
   digitalWrite(BUILTIN_LED, LOW);
   
-	snprintf ( temp, 400,
-      "<html>\
-        <head>\
-          <meta charset='UTF-8'>\
-        </head>\
-        <body>\
-          T2899BDCF02000076,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%s%d.%02d<br />\
-          Humidity,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%d.00<br />\
-          Press,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%d.00<br />\
-          DewPoint,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%s%d.%02d<br />\
+  // temperature = -4.625;
+  // humidity=96.5f;
+  // pressure=102370f;
+  // dewPoint=1.5f;
+  
+  snprintf(temp, 600, "<html><head><meta charset='UTF-8'></head><body>\
+           T2899BDCF02000076,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%s%d.%02d<br />\
+           Humidity,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%d.00<br />\
+           Press,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%d.00<br />\
+           DewPoint,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%s%d.%02d<br />\
         </body>\
-      </html>",
-      year(), month(), day(), hour(), minute(), second(),
+      </html>", year(), month(), day(), hour(), minute(), second(),
       temperature<0 && temperature>-1 ? "-":"",
-      (int)temperature, 
-      abs((temperature - (int)temperature) * 100),
+      (int)temperature, (int)abs((temperature - (int)temperature) * 100),
       year(), month(), day(), hour(), minute(), second(),
       (int)humidity,
       year(), month(), day(), hour(), minute(), second(),
       (int)(round(pressure/100)),
       year(), month(), day(), hour(), minute(), second(),
       dewPoint<0 && dewPoint>-1 ? "-":"",
-      (int)dewPoint, 
-      abs((dewPoint - (int)dewPoint) * 100)
-	);
+      (int)dewPoint, (int)abs((dewPoint - (int)dewPoint) * 100)
+  );
 	server.send ( 200, "text/html", temp );
+  DEBUG_PRINTLN("done.");
   digitalWrite(BUILTIN_LED, HIGH);
 }
 #endif
@@ -142,6 +133,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
     sendNetInfoMQTT();
   } else if (strcmp(topic, (String(mqtt_base) + "/" + String(mqtt_config_portal)).c_str())==0) {
     startConfigPortal();
+  } else if (strcmp(topic, (String(mqtt_base) + "/" + String(mqtt_config_portal_stop)).c_str())==0) {
+    stopConfigPortal();
   }
 }
 
@@ -214,9 +207,9 @@ void setup() {
   sendNetInfoMQTT();
 
 #ifdef serverHTTP
-  server.on ( "/", handleRoot );
+  server.on("/", handleRoot);
   server.begin();
-  DEBUG_PRINTLN ( "HTTP server started!!" );
+  DEBUG_PRINTLN ("HTTP server started!!");
 #endif
 
 #ifdef time
@@ -226,9 +219,7 @@ void setup() {
   DEBUG_PRINTLN(EthernetUdp.localPort());
   DEBUG_PRINTLN("waiting for sync");
   setSyncProvider(getNtpTime);
-  setSyncInterval(300);
-  
-  printSystemTime();
+  setSyncInterval(3600);
 #endif
 
 #ifdef ota
@@ -287,6 +278,7 @@ void setup() {
   }
 
   //setup timers
+  timer.every(2000, isActive);
   timer.every(MEAS_DELAY, meass);
   timer.every(SEND_DELAY, sendDataMQTT);
   timer.every(SENDSTAT_DELAY, sendStatisticMQTT);
@@ -314,20 +306,29 @@ void loop() {
 #ifdef serverHTTP
   server.handleClient();
 #endif
-
   client.loop();
   wifiManager.process();
-
 #ifdef ota
   ArduinoOTA.handle();
 #endif
 }
 
 void startConfigPortal(void) {
-  DEBUG_PRINTLN("Config portal");
+  DEBUG_PRINTLN("START config portal");
   wifiManager.setConfigPortalBlocking(false);
   wifiManager.startConfigPortal(HOSTNAMEOTA);
 }
+
+void stopConfigPortal(void) {
+  DEBUG_PRINTLN("STOP config portal");
+  wifiManager.stopConfigPortal();
+}
+
+bool isActive(void *) {
+  DEBUG_PRINTLN(wifiManager.getConfigPortalActive());
+  return true;
+}
+
 
 
 bool meass(void *) {
@@ -424,7 +425,6 @@ void validateInput(const char *input, char *output)
 
 bool sendDataMQTT(void *) {
   digitalWrite(BUILTIN_LED, LOW);
-  printSystemTime();
   DEBUG_PRINTLN(F("Data"));
   
   SenderClass sender;
@@ -443,7 +443,6 @@ bool sendDataMQTT(void *) {
 
 bool sendStatisticMQTT(void *) {
   digitalWrite(BUILTIN_LED, LOW);
-  printSystemTime();
   DEBUG_PRINTLN(F("Statistic"));
 
   SenderClass sender;
@@ -460,7 +459,6 @@ bool sendStatisticMQTT(void *) {
 
 void sendNetInfoMQTT() {
   digitalWrite(BUILTIN_LED, LOW);
-  printSystemTime();
   DEBUG_PRINTLN(F("Net info"));
 
   SenderClass sender;
@@ -568,12 +566,4 @@ bool reconnect(void *) {
     }
   }
   return true;
-}
-
-void printSystemTime() {
-#ifdef time
-  char buffer[20];
-  sprintf(buffer, "%02d.%02d.%4d %02d:%02d:%02d", day(), month(), year(), hour(), minute(), second());
-  DEBUG_PRINT(buffer);
-#endif
 }
