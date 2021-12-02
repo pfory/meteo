@@ -18,7 +18,7 @@
 #include <TimeLib.h>
 
 //SW name & version
-#define     VERSION                          "2.10"
+#define     VERSION                          "2.11"
 #define     SW_NAME                          "Meteo"
 
 #define ota
@@ -67,7 +67,7 @@
 //SCL                                       D1 //
 
 #define CONFIG_PORTAL_TIMEOUT 60 //jak dlouho zustane v rezimu konfigurace
-#define CONNECT_TIMEOUT 120 //jak dlouho se ceka na spojeni nez se aktivuje config portal
+#define CONNECT_TIMEOUT 5 //jak dlouho se ceka na spojeni nez se aktivuje config portal
 
 static const char* const      mqtt_server                    = "192.168.1.56";
 static const uint16_t         mqtt_port                      = 1883;

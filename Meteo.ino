@@ -278,7 +278,6 @@ void setup() {
   }
 
   //setup timers
-  timer.every(2000, isActive);
   timer.every(MEAS_DELAY, meass);
   timer.every(SEND_DELAY, sendDataMQTT);
   timer.every(SENDSTAT_DELAY, sendStatisticMQTT);
@@ -323,13 +322,6 @@ void stopConfigPortal(void) {
   DEBUG_PRINTLN("STOP config portal");
   wifiManager.stopConfigPortal();
 }
-
-bool isActive(void *) {
-  DEBUG_PRINTLN(wifiManager.getConfigPortalActive());
-  return true;
-}
-
-
 
 bool meass(void *) {
   digitalWrite(BUILTIN_LED, LOW);
