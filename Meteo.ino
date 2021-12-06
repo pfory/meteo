@@ -154,6 +154,7 @@ WiFiManager wifiManager;
 void setup() {
   // put your setup code here, to run once:
   SERIAL_BEGIN;
+  Serial.setDebugOutput(true);
   DEBUG_PRINT(F(SW_NAME));
   DEBUG_PRINT(F(" "));
   DEBUG_PRINTLN(F(VERSION));
