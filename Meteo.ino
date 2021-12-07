@@ -205,8 +205,6 @@ void setup() {
 
   WiFi.printDiag(Serial);
   
-  sendNetInfoMQTT();
-
 #ifdef serverHTTP
   server.on("/", handleRoot);
   server.begin();
@@ -246,8 +244,6 @@ void setup() {
   ArduinoOTA.begin();
 #endif
 
-  Wire.begin();
-  
   DEBUG_PRINT("\nProbe SI7021: ");
   if (si7021.begin(SDAPIN, SCLPIN)) {
     SI7021Present = true;
@@ -259,6 +255,7 @@ void setup() {
     DEBUG_PRINTLN("Sensor missing!!!!");
   }
 
+  Wire.begin();
   DEBUG_PRINT("Probe DS18B20: ");
   dsSensors.begin(); 
   if (dsSensors.getDeviceCount()>0) {
@@ -285,8 +282,12 @@ void setup() {
   timer.every(CONNECT_DELAY, reconnect);
 
   void * a;
-  sendStatisticMQTT(a);
   reconnect(a);
+  meass(a);
+  sendStatisticMQTT(a);
+  sendDataMQTT(a);
+
+  sendNetInfoMQTT();
   
   DEBUG_PRINTLN(" Ready");
  
@@ -419,17 +420,24 @@ void validateInput(const char *input, char *output)
 bool sendDataMQTT(void *) {
   digitalWrite(BUILTIN_LED, LOW);
   DEBUG_PRINTLN(F("Data"));
+
+  client.publish((String(mqtt_base) + "/Temperature").c_str(), String(temperature).c_str());
+  client.publish((String(mqtt_base) + "/Press").c_str(), String(pressure).c_str());
+  client.publish((String(mqtt_base) + "/Temp085").c_str(), String(temperature085).c_str());
+  client.publish((String(mqtt_base) + "/Humidity").c_str(), String(humidity).c_str());
+  client.publish((String(mqtt_base) + "/Temp7021").c_str(), String(tempSI7021).c_str());
+  client.publish((String(mqtt_base) + "/DewPoint").c_str(), String(dewPoint).c_str());
   
-  SenderClass sender;
-  sender.add("Temperature", temperature);
-  sender.add("Press", pressure);
-  sender.add("Temp085", temperature085);
-  sender.add("Humidity", humidity);
-  sender.add("Temp7021", tempSI7021);
-  sender.add("DewPoint", dewPoint);
+  //SenderClass sender;
+  // sender.add("Temperature", temperature);
+  // sender.add("Press", pressure);
+  // sender.add("Temp085", temperature085);
+  // sender.add("Humidity", humidity);
+  // sender.add("Temp7021", tempSI7021);
+  // sender.add("DewPoint", dewPoint);
   DEBUG_PRINTLN(F("Calling MQTT"));
 
-  sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
+  //sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
   digitalWrite(BUILTIN_LED, HIGH);
   return true;
 }
@@ -437,32 +445,43 @@ bool sendDataMQTT(void *) {
 bool sendStatisticMQTT(void *) {
   digitalWrite(BUILTIN_LED, LOW);
   DEBUG_PRINTLN(F("Statistic"));
-
-  SenderClass sender;
-  sender.add("VersionSW", VERSION);
-  sender.add("Napeti",  ESP.getVcc());
-  sender.add("HeartBeat", heartBeat++);
-  sender.add("RSSI", WiFi.RSSI());
-  DEBUG_PRINTLN(F("Calling MQTT"));
   
-  sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
+  client.publish((String(mqtt_base) + "/VersionSW").c_str(), VERSION);
+  client.publish((String(mqtt_base) + "/Napeti").c_str(), String(ESP.getVcc()).c_str());
+  client.publish((String(mqtt_base) + "/HeartBeat").c_str(), String(heartBeat++).c_str());
+  if (heartBeat % 10 == 0) {
+    client.publish((String(mqtt_base) + "/RSSI").c_str(), String(WiFi.RSSI()).c_str());
+  }
+
+  // SenderClass sender;
+  // sender.add("VersionSW",                     VERSION);
+  // sender.add("Napeti",                        ESP.getVcc());
+  // sender.add("HeartBeat",                     heartBeat++);
+  //if (heartBeat % 10 == 0) sender.add("RSSI", WiFi.RSSI());
+  
+  //DEBUG_PRINTLN(F("Calling MQTT"));
+  
+  // sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
   digitalWrite(BUILTIN_LED, HIGH);
   return true;
 }
 
 void sendNetInfoMQTT() {
-  digitalWrite(BUILTIN_LED, LOW);
+  //printSystemTime();
   DEBUG_PRINTLN(F("Net info"));
 
-  SenderClass sender;
-  sender.add("IP",              WiFi.localIP().toString().c_str());
-  sender.add("MAC",             WiFi.macAddress());
-  sender.add("AP name",         WiFi.SSID());
+  client.publish((String(mqtt_base) + "/IP").c_str(), WiFi.localIP().toString().c_str());
+  client.publish((String(mqtt_base) + "/MAC").c_str(), String(WiFi.macAddress()).c_str());
+  client.publish((String(mqtt_base) + "/AP name").c_str(), String(WiFi.SSID()).c_str());
+
   
-  DEBUG_PRINTLN(F("Calling MQTT"));
+  //sender.add("IP",              WiFi.localIP().toString().c_str());
+  // sender.add("MAC",             WiFi.macAddress());
+  // sender.add("AP name",         WiFi.SSID());
+
+  // DEBUG_PRINTLN(F("Calling MQTT"));
   
-  sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
-  digitalWrite(BUILTIN_LED, HIGH);
+  //sender.sendMQTT(mqtt_server, mqtt_port, mqtt_username, mqtt_key, mqtt_base);
   return;
 }
 
@@ -552,6 +571,7 @@ bool reconnect(void *) {
     // Attempt to connect
     if (client.connect(mqtt_base, mqtt_username, mqtt_key)) {
       client.subscribe((String(mqtt_base) + "/#").c_str());
+      client.publish((String(mqtt_base) + "/connected").c_str(), "");
       DEBUG_PRINTLN("connected");
     } else {
       DEBUG_PRINT("failed, rc=");

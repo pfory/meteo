@@ -6,11 +6,11 @@
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
 #include <Ticker.h>
 #include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
-#include <Sender.h>
+//#include <Sender.h>
 #include <SI7021.h>
+#include <PubSubClient.h>
 #include <Wire.h>
 #include <Ticker.h>
-#include <OneWire.h>
 #include <DallasTemperature.h>
 #include <Adafruit_BMP085.h> 
 #include <timer.h>
@@ -18,7 +18,7 @@
 #include <TimeLib.h>
 
 //SW name & version
-#define     VERSION                          "2.11"
+#define     VERSION                          "2.23"
 #define     SW_NAME                          "Meteo"
 
 #define ota
@@ -73,7 +73,7 @@ static const char* const      mqtt_server                    = "192.168.1.56";
 static const uint16_t         mqtt_port                      = 1883;
 static const char* const      mqtt_username                  = "datel";
 static const char* const      mqtt_key                       = "hanka12";
-static const char* const      mqtt_base                      = "/home/MeteoTest";
+static const char* const      mqtt_base                      = "/home/Meteo";
 static const char* const      mqtt_topic_restart             = "restart";
 static const char* const      mqtt_topic_netinfo             = "netinfo";
 static const char* const      mqtt_config_portal             = "config";
