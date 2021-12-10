@@ -1,30 +1,20 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
-#include <DoubleResetDetector.h>      //https://github.com/khoih-prog/ESP_DoubleResetDetector
-#include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
-#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
-#include <Ticker.h>
 #include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
-//#include <Sender.h>
 #include <SI7021.h>
-#include <PubSubClient.h>
-#include <Wire.h>
-#include <Ticker.h>
 #include <DallasTemperature.h>
 #include <Adafruit_BMP085.h> 
-#include <timer.h>
-#include <Timezone.h>
-#include <TimeLib.h>
 
 //SW name & version
-#define     VERSION                          "2.23"
+#define     VERSION                          "2.24"
 #define     SW_NAME                          "Meteo"
 
 #define ota
 #define verbose
 #define serverHTTP
 #define time
+#define timers
 
 #define AUTOCONNECTNAME   HOSTNAMEOTA
 #define AUTOCONNECTPWD    "password"
@@ -83,11 +73,17 @@ static const char* const      mqtt_config_portal_stop        = "disconfig";
 #define LCDCOLS     20
 #define LCDROWS     4
 
+#define SDAPIN D6
+#define SCLPIN D5
+
+
 #define SEND_DELAY                           60000  //prodleva mezi poslanim dat v ms
 #define SENDSTAT_DELAY                       60000  //poslani statistiky kazdou minutu
 #define MEAS_DELAY                           5000   //mereni
 #define CONNECT_DELAY                        5000 //ms
 
 #define MEAS_TIME                            750 //in ms
+
+#include <fce.h>
 
 #endif
