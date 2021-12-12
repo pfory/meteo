@@ -13,10 +13,6 @@
 
 SI7021 si7021;
 
-#ifdef serverHTTP
-ESP8266WebServer server(81);
-#endif
-
 float                 humidity, tempSI7021, dewPoint;
 bool                  SI7021Present        = false;
 
@@ -34,6 +30,10 @@ float                 high_above_sea      = 369.0;
 float                 pressure            = 0.f;
 float                 temperature085      = 0.f;
 bool                  BMP085Present       = false;
+
+#ifdef serverHTTP
+ESP8266WebServer server(81);
+#endif
 
 #ifdef serverHTTP
 void handleRoot() {
@@ -97,6 +97,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 void setup() {
   preSetup();
+  
+#ifdef serverHTTP
+  server.on ( "/", handleRoot );
+  server.begin();
+  DEBUG_PRINTLN ( "HTTP server started!!" );
+#endif
 
   DEBUG_PRINT("\nProbe SI7021: ");
   if (si7021.begin(SDAPIN, SCLPIN)) {
@@ -282,7 +288,6 @@ bool sendDataMQTT(void *) {
 bool reconnect(void *) {
   if (!client.connected()) {
     DEBUG_PRINT("Attempting MQTT connection...");
-    // Attempt to connect
     if (client.connect(mqtt_base, mqtt_username, mqtt_key, (String(mqtt_base) + "/LWT").c_str(), 2, true, "offline", true)) {
       client.subscribe((String(mqtt_base) + "/" + String(mqtt_topic_restart)).c_str());
       client.subscribe((String(mqtt_base) + "/" + String(mqtt_topic_netinfo)).c_str());
@@ -290,7 +295,10 @@ bool reconnect(void *) {
       client.subscribe((String(mqtt_base) + "/" + String(mqtt_config_portal_stop)).c_str());
       client.publish((String(mqtt_base) + "/LWT").c_str(), "online", true);
     } else {
-      DEBUG_PRINT("failed, rc=");
+      DEBUG_PRINT("disconected.");
+      DEBUG_PRINT(" Wifi status:");
+      DEBUG_PRINT(WiFi.status());
+      DEBUG_PRINT(" Client status:");
       DEBUG_PRINTLN(client.state());
     }
   }
