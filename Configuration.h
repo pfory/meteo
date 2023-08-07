@@ -18,8 +18,8 @@
 #define timers
 #define serverHTTP
 
-#define CONFIG_PORTAL_TIMEOUT 60 //jak dlouho zustane v rezimu konfigurace
-#define CONNECT_TIMEOUT 5 //jak dlouho se ceka na spojeni nez se aktivuje config portal
+// #define CONFIG_PORTAL_TIMEOUT 60 //jak dlouho zustane v rezimu konfigurace
+// #define CONNECT_TIMEOUT 5 //jak dlouho se ceka na spojeni nez se aktivuje config portal
 
 static const char* const      mqtt_server                    = "192.168.1.56";
 static const uint16_t         mqtt_port                      = 1883;
@@ -37,9 +37,9 @@ static const char* const      mqtt_config_portal_stop        = "disconfig";
 //SDA                                       D2 //
 //SCL                                       D1 //
 
-#define LCDADDRESS  0x27
-#define LCDCOLS     20
-#define LCDROWS     4
+// #define LCDADDRESS  0x27
+// #define LCDCOLS     20
+// #define LCDROWS     4
 
 #define SDAPIN D6
 #define SCLPIN D5

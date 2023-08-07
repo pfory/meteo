@@ -39,7 +39,7 @@ ESP8266WebServer server(81);
 void handleRoot() {
 	char temp[600];
   DEBUG_PRINT("Web client request...");
-  digitalWrite(BUILTIN_LED, LOW);
+  digitalWrite(LED_BUILTIN, LOW);
   
   // temperature = -4.625;
   // humidity=96.5f;
@@ -65,18 +65,18 @@ void handleRoot() {
   );
 	server.send ( 200, "text/html", temp );
   DEBUG_PRINTLN("done.");
-  digitalWrite(BUILTIN_LED, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 #endif
 
 //MQTT callback
 void callback(char* topic, byte* payload, unsigned int length) {
-  char * pEnd;
+  // char * pEnd;
   String val =  String();
   DEBUG_PRINT("\nMessage arrived [");
   DEBUG_PRINT(topic);
   DEBUG_PRINT("] ");
-  for (int i=0;i<length;i++) {
+  for (unsigned int i=0;i<length;i++) {
     DEBUG_PRINT((char)payload[i]);
     val += (char)payload[i];
   }
@@ -155,7 +155,7 @@ void setup() {
  
   ticker.detach();
   //keep LED on
-  digitalWrite(BUILTIN_LED, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
 
   drd.stop();
 
@@ -177,7 +177,7 @@ void loop() {
 }
 
 bool meass(void *) {
-  digitalWrite(BUILTIN_LED, LOW);
+  digitalWrite(LED_BUILTIN, LOW);
   
   if (DS18B20Present) {
     dsSensors.requestTemperatures(); // Send the command to get temperatures
@@ -247,7 +247,7 @@ bool meass(void *) {
 
   dewPoint = calcDewPoint(humidity, temperature);
   
-  digitalWrite(BUILTIN_LED, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
 
   return true;
 }
@@ -269,7 +269,7 @@ void validateInput(const char *input, char *output)
 }
 
 bool sendDataMQTT(void *) {
-  digitalWrite(BUILTIN_LED, LOW);
+  digitalWrite(LED_BUILTIN, LOW);
   DEBUG_PRINTLN(F("Data"));
 
   client.publish((String(mqtt_base) + "/Temperature").c_str(), String(temperature).c_str());
@@ -281,7 +281,7 @@ bool sendDataMQTT(void *) {
 
   DEBUG_PRINTLN(F("Calling MQTT"));
 
-  digitalWrite(BUILTIN_LED, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
   return true;
 }
 
