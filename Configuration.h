@@ -9,7 +9,7 @@
 #include <ESP8266WebServer.h>
 
 //SW name & version
-#define     VERSION                          "2.27"
+#define     VERSION                          "2.28"
 #define     SW_NAME                          "Meteo"
 
 #define ota
@@ -47,7 +47,7 @@ static const char* const      mqtt_config_portal_stop        = "disconfig";
 
 #define SEND_DELAY                           60000  //prodleva mezi poslanim dat v ms
 #define SENDSTAT_DELAY                       60000  //poslani statistiky kazdou minutu
-#define MEAS_DELAY                           5000   //mereni
+#define MEAS_DELAY                           30000   //mereni
 #define CONNECT_DELAY                        5000 //ms
 
 #define MEAS_TIME                            750 //in ms
