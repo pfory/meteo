@@ -31,9 +31,9 @@ float                 pressure            = 0.f;
 float                 temperature085      = 0.f;
 bool                  BMP085Present       = false;
 
-#ifdef serverHTTP
-ESP8266WebServer server(81);
-#endif
+// #ifdef serverHTTP
+// ESP8266WebServer server(81);
+// #endif
 
 #ifdef serverHTTP
 void handleRoot() {
@@ -97,6 +97,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 void setup() {
   preSetup();
+  client.setCallback(callback);
   
 #ifdef serverHTTP
   server.on ( "/", handleRoot );
@@ -139,20 +140,14 @@ void setup() {
   //setup timers
   timer.every(MEAS_DELAY, meass);
   timer.every(SEND_DELAY, sendDataMQTT);
-  timer.every(SENDSTAT_DELAY, sendStatisticMQTT);
   timer.every(CONNECT_DELAY, reconnect);
 #endif
 
   void * a;
   reconnect(a);
   meass(a);
-  sendStatisticMQTT(a);
   sendDataMQTT(a);
 
-  sendNetInfoMQTT();
-  
-  DEBUG_PRINTLN(" Ready");
- 
   ticker.detach();
   //keep LED on
   digitalWrite(LED_BUILTIN, HIGH);
@@ -270,7 +265,7 @@ void validateInput(const char *input, char *output)
 
 bool sendDataMQTT(void *) {
   digitalWrite(LED_BUILTIN, LOW);
-  DEBUG_PRINTLN(F("Data"));
+  DEBUG_PRINT(F("Send data..."));
 
   client.publish((String(mqtt_base) + "/Temperature").c_str(), String(temperature).c_str());
   client.publish((String(mqtt_base) + "/Press").c_str(), String(pressure).c_str());
@@ -279,9 +274,8 @@ bool sendDataMQTT(void *) {
   client.publish((String(mqtt_base) + "/Temp7021").c_str(), String(tempSI7021).c_str());
   client.publish((String(mqtt_base) + "/DewPoint").c_str(), String(dewPoint).c_str());
 
-  DEBUG_PRINTLN(F("Calling MQTT"));
-
   digitalWrite(LED_BUILTIN, HIGH);
+  DEBUG_PRINTLN(F("DONE!"));
   return true;
 }
 
