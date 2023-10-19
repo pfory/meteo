@@ -9,7 +9,7 @@
 #include <ESP8266WebServer.h>
 
 //SW name & version
-#define     VERSION                          "2.31"
+#define     VERSION                          "2.32"
 #define     SW_NAME                          "Meteo"
 
 #define ota

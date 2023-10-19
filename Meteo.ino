@@ -97,7 +97,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 void setup() {
   preSetup();
-  client.setCallback(callback);
   
 #ifdef serverHTTP
   server.on ( "/", handleRoot );
@@ -152,7 +151,7 @@ void setup() {
   //keep LED on
   digitalWrite(LED_BUILTIN, HIGH);
 
-  drd.stop();
+  //drd.stop();
 
   DEBUG_PRINTLN(F("SETUP END......................."));
 }
@@ -169,6 +168,7 @@ void loop() {
 #ifdef ota
   ArduinoOTA.handle();
 #endif
+  drd.loop();
 }
 
 bool meass(void *) {
@@ -222,22 +222,22 @@ bool meass(void *) {
   }
   
   if ((SI7021Present && humidity == 0) || (BMP085Present && (pressure == 0 || pressure > 106000))) {
-    void * a;
-    if (SI7021Present && humidity == 0) {
-      heartBeat = 998;
-    } else if (BMP085Present) {
-      if (pressure == 0) {
-        heartBeat = 997;
-      } else if (pressure > 106000) {
-        heartBeat = 996;
-      } else {
-        heartBeat = 995;
-      }
-    }
-    sendStatisticMQTT(a);
+    // void * a;
+    // if (SI7021Present && humidity == 0) {
+      // heartBeat = 998;
+    // } else if (BMP085Present) {
+      // if (pressure == 0) {
+        // heartBeat = 997;
+      // } else if (pressure > 106000) {
+        // heartBeat = 996;
+      // } else {
+        // heartBeat = 995;
+      // }
+    // }
+    // sendStatisticMQTT(a);
 
-    DEBUG_PRINT("RESTART");
-    ESP.restart();
+    // DEBUG_PRINT("RESTART");
+    //ESP.restart();
   }
 
   dewPoint = calcDewPoint(humidity, temperature);
