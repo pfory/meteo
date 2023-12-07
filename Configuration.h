@@ -1,15 +1,25 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
+#define SHT40
+//#define humSI7021
+
 #include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
-#include <SI7021.h>
 #include <DallasTemperature.h>
 #include <Adafruit_BMP085.h> 
 #include <OneWire.h>
 #include <ESP8266WebServer.h>
 
+#ifdef humSI7021
+#include <SI7021.h>
+#endif
+
+#ifdef SHT40
+#include "Adafruit_SHT4x.h"
+#endif
+
 //SW name & version
-#define     VERSION                          "2.32"
+#define     VERSION                          "2.41"
 #define     SW_NAME                          "Meteo"
 
 #define ota
@@ -34,12 +44,6 @@ static const char* const      mqtt_config_portal_stop        = "disconfig";
 
 //All of the IO pins have interrupt/pwm/I2C/one-wire support except D0.
 #define ONE_WIRE_BUS                        D4 //Dallas
-//SDA                                       D2 //
-//SCL                                       D1 //
-
-// #define LCDADDRESS  0x27
-// #define LCDCOLS     20
-// #define LCDROWS     4
 
 #define SDAPIN D6
 #define SCLPIN D5
