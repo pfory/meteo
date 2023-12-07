@@ -1,6 +1,7 @@
 //BMP085   - pressure sensor
 //DS18B20  - temperature sensor
-//SI7021   - temperature and humidity sensor
+//SI7021   - temperature and humidity sensor do v2.32
+//SHT40    - temperature and humidity sensor do v2.40
 
 //Pinout NODEMCU 1.0
 //D4 - DS18B20
@@ -11,10 +12,22 @@
 
 #include "Configuration.h"
 
-SI7021 si7021;
+float                 dewPoint;
 
-float                 humidity, tempSI7021, dewPoint;
+
+#ifdef humSI7021
+SI7021 sensorHumidity;
+
+float                 tempSI7021;
+float                 humidity;
 bool                  SI7021Present        = false;
+#endif
+
+#ifdef SHT40
+Adafruit_SHT4x sensorHumidity = Adafruit_SHT4x();
+sensors_event_t       tempSHT40;
+sensors_event_t       humidity;
+#endif
 
 ADC_MODE(ADC_VCC);
 
@@ -40,6 +53,13 @@ void handleRoot() {
 	char temp[600];
   DEBUG_PRINT("Web client request...");
   digitalWrite(LED_BUILTIN, LOW);
+  int h;
+#ifdef SI7021      
+  h = (int)humidity;
+#endif
+#ifdef SHT40
+  h = (int)humidity.relative_humidity;
+#endif
   
   // temperature = -4.625;
   // humidity=96.5f;
@@ -56,7 +76,7 @@ void handleRoot() {
       temperature<0 && temperature>-1 ? "-":"",
       (int)temperature, (int)abs((temperature - (int)temperature) * 100),
       year(), month(), day(), hour(), minute(), second(),
-      (int)humidity,
+      h,
       year(), month(), day(), hour(), minute(), second(),
       (int)(round(pressure/100)),
       year(), month(), day(), hour(), minute(), second(),
@@ -97,6 +117,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 void setup() {
   preSetup();
+  Wire.begin();
   
 #ifdef serverHTTP
   server.on ( "/", handleRoot );
@@ -104,8 +125,9 @@ void setup() {
   DEBUG_PRINTLN ( "HTTP server started!!" );
 #endif
 
+#ifdef humSI7021
   DEBUG_PRINT("\nProbe SI7021: ");
-  if (si7021.begin(SDAPIN, SCLPIN)) {
+  if (sensorHumidity.begin(SDAPIN, SCLPIN)) {
     SI7021Present = true;
   }
 
@@ -114,6 +136,19 @@ void setup() {
   } else {
     DEBUG_PRINTLN("Sensor missing!!!!");
   }
+#endif
+
+#ifdef SHT40
+  if (!sensorHumidity.begin()) {
+    DEBUG_PRINTLN("Couldn't find SHT4x");
+  } else {
+    DEBUG_PRINTLN("Found SHT4x sensor");
+    DEBUG_PRINT("Serial number 0x");
+    DEBUG_PRINTHEX(sensorHumidity.readSerial());
+    sensorHumidity.setPrecision(SHT4X_HIGH_PRECISION);
+    sensorHumidity.setHeater(SHT4X_HIGH_HEATER_100MS);
+  }
+#endif
 
   Wire.begin();
   DEBUG_PRINT("Probe DS18B20: ");
@@ -187,11 +222,12 @@ bool meass(void *) {
   } else {
     temperature = 0.0; //dummy
   }
-  
+
+#ifdef humSI7021  
   if (SI7021Present) {
-    humidity=si7021.getHumidityPercent();
-    tempSI7021=si7021.getCelsiusHundredths() / 100;
-    //si7021.triggerMeasurement();
+    humidity=sensorHumidity.getHumidityPercent();
+    tempSI7021=sensorHumidity.getCelsiusHundredths() / 100;
+    //sensorHumidity.triggerMeasurement();
 
     if (humidity>100) {
       humidity = 100;
@@ -206,7 +242,12 @@ bool meass(void *) {
     humidity = 0.0;    //dummy
     tempSI7021 = 0.0;  //dummy
   }
-  
+#endif  
+
+#ifdef SHT40
+  sensorHumidity.getEvent(&humidity, &tempSHT40);// populate temp and humidity objects with fresh data
+#endif
+
   if (BMP085Present) {
     DEBUG_PRINT("Temperature BMP085: ");
     temperature085 = bmp.readTemperature();
@@ -221,7 +262,7 @@ bool meass(void *) {
     pressure = 0;     //Pa - dummy
   }
   
-  if ((SI7021Present && humidity == 0) || (BMP085Present && (pressure == 0 || pressure > 106000))) {
+  //if ((SI7021Present && humidity == 0) || (BMP085Present && (pressure == 0 || pressure > 106000))) {
     // void * a;
     // if (SI7021Present && humidity == 0) {
       // heartBeat = 998;
@@ -238,10 +279,13 @@ bool meass(void *) {
 
     // DEBUG_PRINT("RESTART");
     //ESP.restart();
-  }
-
+  //}
+#ifdef SI7021
   dewPoint = calcDewPoint(humidity, temperature);
-  
+#endif
+#ifdef SHT40
+  dewPoint = calcDewPoint(humidity.relative_humidity, tempSHT40.temperature);
+#endif
   digitalWrite(LED_BUILTIN, HIGH);
 
   return true;
@@ -270,8 +314,15 @@ bool sendDataMQTT(void *) {
   client.publish((String(mqtt_base) + "/Temperature").c_str(), String(temperature).c_str());
   client.publish((String(mqtt_base) + "/Press").c_str(), String(pressure).c_str());
   client.publish((String(mqtt_base) + "/Temp085").c_str(), String(temperature085).c_str());
-  client.publish((String(mqtt_base) + "/Humidity").c_str(), String(humidity).c_str());
+#ifdef humSI7021
   client.publish((String(mqtt_base) + "/Temp7021").c_str(), String(tempSI7021).c_str());
+  client.publish((String(mqtt_base) + "/Humidity").c_str(), String(humidity).c_str());
+#endif
+#ifdef SHT40
+  client.publish((String(mqtt_base) + "/TempSHT40").c_str(), String(tempSHT40.temperature).c_str());
+  client.publish((String(mqtt_base) + "/Humidity").c_str(), String(humidity.relative_humidity).c_str());
+#endif
+
   client.publish((String(mqtt_base) + "/DewPoint").c_str(), String(dewPoint).c_str());
 
   digitalWrite(LED_BUILTIN, HIGH);
