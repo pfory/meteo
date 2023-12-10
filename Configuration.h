@@ -1,8 +1,8 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
-#define SHT40
-//#define humSI7021
+#define humSHT40
+#define humSI7021
 
 #include <ArduinoJson.h> //https://github.com/bblanchon/ArduinoJson
 #include <DallasTemperature.h>
@@ -14,12 +14,12 @@
 #include <SI7021.h>
 #endif
 
-#ifdef SHT40
+#ifdef humSHT40
 #include "Adafruit_SHT4x.h"
 #endif
 
 //SW name & version
-#define     VERSION                          "2.41"
+#define     VERSION                          "2.43"
 #define     SW_NAME                          "Meteo"
 
 #define ota
@@ -27,9 +27,6 @@
 #define cas
 #define timers
 #define serverHTTP
-
-// #define CONFIG_PORTAL_TIMEOUT 60 //jak dlouho zustane v rezimu konfigurace
-// #define CONNECT_TIMEOUT 5 //jak dlouho se ceka na spojeni nez se aktivuje config portal
 
 static const char* const      mqtt_server                    = "192.168.1.56";
 static const uint16_t         mqtt_port                      = 1883;
@@ -45,9 +42,8 @@ static const char* const      mqtt_config_portal_stop        = "disconfig";
 //All of the IO pins have interrupt/pwm/I2C/one-wire support except D0.
 #define ONE_WIRE_BUS                        D4 //Dallas
 
-#define SDAPIN D6
-#define SCLPIN D5
-
+#define SDAPIN                              D6
+#define SCLPIN                              D5
 
 #define SEND_DELAY                           15000  //prodleva mezi poslanim dat v ms
 #define SENDSTAT_DELAY                       60000  //poslani statistiky kazdou minutu

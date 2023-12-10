@@ -16,17 +16,18 @@ float                 dewPoint;
 
 
 #ifdef humSI7021
-SI7021 sensorHumidity;
+SI7021 sensorHumiditySI7021;
 
 float                 tempSI7021;
-float                 humidity;
+float                 humiditySI7021;
 bool                  SI7021Present        = false;
 #endif
 
-#ifdef SHT40
-Adafruit_SHT4x sensorHumidity = Adafruit_SHT4x();
+#ifdef humSHT40
+Adafruit_SHT4x sensorHumiditySHT40 = Adafruit_SHT4x();
 sensors_event_t       tempSHT40;
-sensors_event_t       humidity;
+sensors_event_t       humiditySHT40;
+bool                  SHT40Present        = false;
 #endif
 
 ADC_MODE(ADC_VCC);
@@ -54,11 +55,11 @@ void handleRoot() {
   DEBUG_PRINT("Web client request...");
   digitalWrite(LED_BUILTIN, LOW);
   int h;
-#ifdef SI7021      
-  h = (int)humidity;
+#ifdef humSI7021      
+  h = (int)humiditySI7021;
 #endif
-#ifdef SHT40
-  h = (int)humidity.relative_humidity;
+#ifdef humSHT40
+  h = (int)humiditySHT40.relative_humidity;
 #endif
   
   // temperature = -4.625;
@@ -117,7 +118,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 void setup() {
   preSetup();
-  Wire.begin();
+  Wire.begin(SDAPIN, SCLPIN);
   
 #ifdef serverHTTP
   server.on ( "/", handleRoot );
@@ -127,7 +128,7 @@ void setup() {
 
 #ifdef humSI7021
   DEBUG_PRINT("\nProbe SI7021: ");
-  if (sensorHumidity.begin(SDAPIN, SCLPIN)) {
+  if (sensorHumiditySI7021.begin(SDAPIN, SCLPIN)) {
     SI7021Present = true;
   }
 
@@ -138,19 +139,21 @@ void setup() {
   }
 #endif
 
-#ifdef SHT40
-  if (!sensorHumidity.begin()) {
+#ifdef humSHT40
+  if (!sensorHumiditySHT40.begin()) {
     DEBUG_PRINTLN("Couldn't find SHT4x");
+    SHT40Present = false;
   } else {
     DEBUG_PRINTLN("Found SHT4x sensor");
     DEBUG_PRINT("Serial number 0x");
-    DEBUG_PRINTHEX(sensorHumidity.readSerial());
-    sensorHumidity.setPrecision(SHT4X_HIGH_PRECISION);
-    sensorHumidity.setHeater(SHT4X_HIGH_HEATER_100MS);
+    DEBUG_PRINTHEX(sensorHumiditySHT40.readSerial());
+    DEBUG_PRINTLN();
+    sensorHumiditySHT40.setPrecision(SHT4X_HIGH_PRECISION);
+    sensorHumiditySHT40.setHeater(SHT4X_NO_HEATER);
+    SHT40Present = true;
   }
 #endif
 
-  Wire.begin();
   DEBUG_PRINT("Probe DS18B20: ");
   dsSensors.begin(); 
   if (dsSensors.getDeviceCount()>0) {
@@ -177,10 +180,11 @@ void setup() {
   timer.every(CONNECT_DELAY, reconnect);
 #endif
 
-  void * a;
+  void * a = 0;
   reconnect(a);
   meass(a);
   sendDataMQTT(a);
+  sendNetInfoMQTT();  
 
   ticker.detach();
   //keep LED on
@@ -225,27 +229,38 @@ bool meass(void *) {
 
 #ifdef humSI7021  
   if (SI7021Present) {
-    humidity=sensorHumidity.getHumidityPercent();
-    tempSI7021=sensorHumidity.getCelsiusHundredths() / 100;
-    //sensorHumidity.triggerMeasurement();
+    humiditySI7021=sensorHumiditySI7021.getHumidityPercent();
+    tempSI7021=sensorHumiditySI7021.getCelsiusHundredths() / 100;
+    //sensorHumiditySI7021.triggerMeasurement();
 
-    if (humidity>100) {
-      humidity = 100;
+    if (humiditySI7021>100) {
+      humiditySI7021 = 100;
     }
     DEBUG_PRINT("Temperature SI7021: ");
     DEBUG_PRINT(tempSI7021);
     DEBUG_PRINTLN(" *C");
     DEBUG_PRINT("Humidity SI7021: ");
-    DEBUG_PRINT(humidity);
+    DEBUG_PRINT(humiditySI7021);
     DEBUG_PRINTLN(" %Rh");
   } else {
-    humidity = 0.0;    //dummy
+    humiditySI7021 = 0.0;    //dummy
     tempSI7021 = 0.0;  //dummy
   }
 #endif  
 
-#ifdef SHT40
-  sensorHumidity.getEvent(&humidity, &tempSHT40);// populate temp and humidity objects with fresh data
+#ifdef humSHT40
+  if (SHT40Present) {
+    sensorHumiditySHT40.getEvent(&humiditySHT40, &tempSHT40);// populate temp and humidity objects with fresh data
+    DEBUG_PRINT("Temperature SHT40:");
+    DEBUG_PRINT(tempSHT40.temperature);
+    DEBUG_PRINTLN(" *C");
+    DEBUG_PRINT("Humidity SHT40:");
+    DEBUG_PRINT(humiditySHT40.relative_humidity);
+    DEBUG_PRINTLN(" %Rh");
+  } else {
+    humiditySHT40.relative_humidity = 0.0;    //dummy
+    tempSHT40.temperature = 0.0;   //dummy
+  }
 #endif
 
   if (BMP085Present) {
@@ -280,11 +295,11 @@ bool meass(void *) {
     // DEBUG_PRINT("RESTART");
     //ESP.restart();
   //}
-#ifdef SI7021
-  dewPoint = calcDewPoint(humidity, temperature);
+#ifdef humSI7021
+  dewPoint = calcDewPoint(humiditySI7021, temperature);
 #endif
-#ifdef SHT40
-  dewPoint = calcDewPoint(humidity.relative_humidity, tempSHT40.temperature);
+#ifdef humSHT40
+  dewPoint = calcDewPoint(humiditySHT40.relative_humidity, tempSHT40.temperature);
 #endif
   digitalWrite(LED_BUILTIN, HIGH);
 
@@ -316,11 +331,11 @@ bool sendDataMQTT(void *) {
   client.publish((String(mqtt_base) + "/Temp085").c_str(), String(temperature085).c_str());
 #ifdef humSI7021
   client.publish((String(mqtt_base) + "/Temp7021").c_str(), String(tempSI7021).c_str());
-  client.publish((String(mqtt_base) + "/Humidity").c_str(), String(humidity).c_str());
+  client.publish((String(mqtt_base) + "/HumiditySI7021").c_str(), String(humiditySI7021).c_str());
 #endif
-#ifdef SHT40
+#ifdef humSHT40
   client.publish((String(mqtt_base) + "/TempSHT40").c_str(), String(tempSHT40.temperature).c_str());
-  client.publish((String(mqtt_base) + "/Humidity").c_str(), String(humidity.relative_humidity).c_str());
+  client.publish((String(mqtt_base) + "/Humidity").c_str(), String(humiditySHT40.relative_humidity).c_str());
 #endif
 
   client.publish((String(mqtt_base) + "/DewPoint").c_str(), String(dewPoint).c_str());
@@ -332,7 +347,7 @@ bool sendDataMQTT(void *) {
 
 bool reconnect(void *) {
   if (!client.connected()) {
-    DEBUG_PRINT("Attempting MQTT connection...");
+    DEBUG_PRINTLN("Attempting MQTT connection...");
     if (client.connect(mqtt_base, mqtt_username, mqtt_key, (String(mqtt_base) + "/LWT").c_str(), 2, true, "offline", true)) {
       client.subscribe((String(mqtt_base) + "/" + String(mqtt_topic_restart)).c_str());
       client.subscribe((String(mqtt_base) + "/" + String(mqtt_topic_netinfo)).c_str());
