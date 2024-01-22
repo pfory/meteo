@@ -13,6 +13,7 @@
 #include "Configuration.h"
 
 float                 dewPoint;
+float                 srazkyOdPulnoci = 0.f;
 
 
 #ifdef humSI7021
@@ -48,7 +49,7 @@ bool                  BMP085Present       = false;
 // #ifdef serverHTTP
 // ESP8266WebServer server(81);
 // #endif
-
+/*
 #ifdef serverHTTP
 void handleRoot() {
 	char temp[600];
@@ -89,6 +90,49 @@ void handleRoot() {
   digitalWrite(LED_BUILTIN, HIGH);
 }
 #endif
+*/
+#ifdef serverHTTP
+void handleRoot() {
+	char temp[100];
+  DEBUG_PRINT("Web client request...");
+  digitalWrite(LED_BUILTIN, LOW);
+  int h;
+#ifdef humSI7021      
+  h = (int)humiditySI7021;
+#endif
+#ifdef humSHT40
+  h = (int)humiditySHT40.relative_humidity;
+#endif
+  
+  // temperature = -4.625f;
+  // humidity=96.5f;
+  // pressure=102378f;
+  // dewPoint=1.5f;
+  // srazkyOdPulnoci=1.4f
+
+  
+  //|11.09.11|21:17|22.9|69|1010.2|1.3|207|0.0|2.1|0.0|, 
+  //|datum|čas|teplota|vlhkost|tlak (přepočtený na hladinu moře, relativní)|rychlost větru v m/s (maximální náraz za 30 minut)
+  //|směr ve stupních|dnešní srážky (od půlnoci)|průměrná rychlost větru za 10 minut v m/s|aktuální intenzita deště v mm/h).
+  
+  snprintf(temp, 100, "<html><head><meta charset='UTF-8'></head><body>\
+            |%2d.%02d.%02d|%02d:%02d|%s%d.%02d|%d|%d.%1d|||%d.%1d|||</body></html>",
+            day(), month(), year(), hour(), minute(),
+            temperature<0 && temperature>-1 ? "-":"",
+            (int)temperature, (int)abs((temperature - (int)temperature) * 100),
+            h,
+            (int)pressure/100, (int)((pressure/100 - (int)pressure/100) * 100),
+            //0,0,
+            (int)srazkyOdPulnoci, (int)((srazkyOdPulnoci - (int)srazkyOdPulnoci) * 10)
+            //0,0
+  );
+	server.send ( 200, "text/html", temp );
+  //client.publish((String(mqtt_base) + "/DataInPocasi").c_str(), temp);
+
+  DEBUG_PRINTLN("done.");
+  digitalWrite(LED_BUILTIN, HIGH);
+}
+#endif
 
 //MQTT callback
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -112,6 +156,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
     startConfigPortal();
   } else if (strcmp(topic, (String(mqtt_base) + "/" + String(mqtt_config_portal_stop)).c_str())==0) {
     stopConfigPortal();
+  } else if (strcmp(topic, (String(mqtt_base) + "/SrazkyOdPulnoci").c_str())==0) {
+    DEBUG_PRINT("Srazky");
+    DEBUG_PRINTLN(val.toFloat());
+    srazkyOdPulnoci = val.toFloat();
   }
 }
 
@@ -353,6 +401,7 @@ bool reconnect(void *) {
       client.subscribe((String(mqtt_base) + "/" + String(mqtt_topic_netinfo)).c_str());
       client.subscribe((String(mqtt_base) + "/" + String(mqtt_config_portal)).c_str());
       client.subscribe((String(mqtt_base) + "/" + String(mqtt_config_portal_stop)).c_str());
+      client.subscribe((String(mqtt_base) + "/SrazkyOdPulnoci").c_str());
       client.publish((String(mqtt_base) + "/LWT").c_str(), "online", true);
     } else {
       DEBUG_PRINT("disconected.");
