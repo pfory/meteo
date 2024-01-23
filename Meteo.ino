@@ -14,6 +14,10 @@
 
 float                 dewPoint;
 float                 srazkyOdPulnoci = 0.f;
+float                 srazkyPosledniHodina = 0.f;
+float                 vitrPrumerPoslednich10Minut = 0.f;
+float                 vitrMaxPoslednich30Minut = 0.f;
+float                 vitrSmerPoslednich30Minut = 0.f;
 
 
 #ifdef humSI7021
@@ -93,7 +97,7 @@ void handleRoot() {
 */
 #ifdef serverHTTP
 void handleRoot() {
-	char temp[100];
+	char temp[200];
   DEBUG_PRINT("Web client request...");
   digitalWrite(LED_BUILTIN, LOW);
   int h;
@@ -115,7 +119,7 @@ void handleRoot() {
   //|datum|čas|teplota|vlhkost|tlak (přepočtený na hladinu moře, relativní)|rychlost větru v m/s (maximální náraz za 30 minut)
   //|směr ve stupních|dnešní srážky (od půlnoci)|průměrná rychlost větru za 10 minut v m/s|aktuální intenzita deště v mm/h).
   
-  snprintf(temp, 100, "<html><head><meta charset='UTF-8'></head><body>\
+  /*snprintf(temp, 100, "<html><head><meta charset='UTF-8'></head><body>\
             |%2d.%02d.%02d|%02d:%02d|%s%d.%02d|%d|%d.%1d|||%d.%1d|||</body></html>",
             day(), month(), year(), hour(), minute(),
             temperature<0 && temperature>-1 ? "-":"",
@@ -125,7 +129,21 @@ void handleRoot() {
             //0,0,
             (int)srazkyOdPulnoci, (int)((srazkyOdPulnoci - (int)srazkyOdPulnoci) * 10)
             //0,0
+  );*/
+  snprintf(temp, 200, "<html><head><meta charset='UTF-8'></head><body>\
+            |%2d.%02d.%02d|%02d:%02d|%2.1f|%d|%4.1f|%2.1f|%3.0f|%3.1f|%2.1f|%3.1f|</body></html>",
+            day(), month(), year(), hour(), minute(),
+            temperature,
+            h,
+            pressure/100,
+            vitrMaxPoslednich30Minut,
+            vitrSmerPoslednich30Minut,
+            srazkyOdPulnoci,
+            vitrPrumerPoslednich10Minut,
+            srazkyPosledniHodina
   );
+
+
 	server.send ( 200, "text/html", temp );
   //client.publish((String(mqtt_base) + "/DataInPocasi").c_str(), temp);
 
@@ -160,6 +178,22 @@ void callback(char* topic, byte* payload, unsigned int length) {
     DEBUG_PRINT("Srazky");
     DEBUG_PRINTLN(val.toFloat());
     srazkyOdPulnoci = val.toFloat();
+  } else if (strcmp(topic, (String(mqtt_base) + "/SrazkyPosledniHodina").c_str())==0) {
+    DEBUG_PRINT("Srazky");
+    DEBUG_PRINTLN(val.toFloat());
+    srazkyPosledniHodina = val.toFloat();
+  } else if (strcmp(topic, (String(mqtt_base) + "/VitrPrumerPoslednich10Minut").c_str())==0) {
+    DEBUG_PRINT("Vitr");
+    DEBUG_PRINTLN(val.toFloat());
+    vitrPrumerPoslednich10Minut = val.toFloat();
+  } else if (strcmp(topic, (String(mqtt_base) + "/VitrMaxPoslednich30Minut").c_str())==0) {
+    DEBUG_PRINT("Vitr");
+    DEBUG_PRINTLN(val.toFloat());
+    vitrMaxPoslednich30Minut = val.toFloat();
+  } else if (strcmp(topic, (String(mqtt_base) + "/VitrSmerPoslednich30Minut").c_str())==0) {
+    DEBUG_PRINT("Vitr");
+    DEBUG_PRINTLN(val.toFloat());
+    vitrSmerPoslednich30Minut = val.toFloat();
   }
 }
 
@@ -402,6 +436,10 @@ bool reconnect(void *) {
       client.subscribe((String(mqtt_base) + "/" + String(mqtt_config_portal)).c_str());
       client.subscribe((String(mqtt_base) + "/" + String(mqtt_config_portal_stop)).c_str());
       client.subscribe((String(mqtt_base) + "/SrazkyOdPulnoci").c_str());
+      client.subscribe((String(mqtt_base) + "/SrazkyPosledniHodina").c_str());
+      client.subscribe((String(mqtt_base) + "/VitrPrumerPoslednich10Minut").c_str());
+      client.subscribe((String(mqtt_base) + "/VitrMaxPoslednich30Minut").c_str());
+      client.subscribe((String(mqtt_base) + "/VitrSmerPoslednich30Minut").c_str());
       client.publish((String(mqtt_base) + "/LWT").c_str(), "online", true);
     } else {
       DEBUG_PRINT("disconected.");
