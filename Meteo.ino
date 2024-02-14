@@ -194,6 +194,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
     DEBUG_PRINT("Vitr");
     DEBUG_PRINTLN(val.toFloat());
     vitrSmerPoslednich30Minut = val.toFloat();
+  } else if (strcmp(topic, (String(mqtt_base) + "/Press").c_str())==0) {
+    pressure = val.toFloat();
   }
 }
 
@@ -289,7 +291,7 @@ void loop() {
 #ifdef ota
   ArduinoOTA.handle();
 #endif
-  drd.loop();
+  drd->loop();
 }
 
 bool meass(void *) {
@@ -345,19 +347,19 @@ bool meass(void *) {
   }
 #endif
 
-  if (BMP085Present) {
-    DEBUG_PRINT("Temperature BMP085: ");
-    temperature085 = bmp.readTemperature();
-    pressure = bmp.readSealevelPressure(high_above_sea);
-    DEBUG_PRINT(temperature085);
-    DEBUG_PRINTLN(" *C");
-    DEBUG_PRINT("Pressure: ");
-    DEBUG_PRINT(pressure);
-    DEBUG_PRINTLN(" Pa");
-  } else {
-    temperature085 = 0.0;  //dummy
-    pressure = 0;     //Pa - dummy
-  }
+  // if (BMP085Present) {
+    // DEBUG_PRINT("Temperature BMP085: ");
+    // temperature085 = bmp.readTemperature();
+    // pressure = bmp.readSealevelPressure(high_above_sea);
+    // DEBUG_PRINT(temperature085);
+    // DEBUG_PRINTLN(" *C");
+    // DEBUG_PRINT("Pressure: ");
+    // DEBUG_PRINT(pressure);
+    // DEBUG_PRINTLN(" Pa");
+  // } else {
+    // temperature085 = 0.0;  //dummy
+    // pressure = 0;     //Pa - dummy
+  // }
   
   //if ((SI7021Present && humidity == 0) || (BMP085Present && (pressure == 0 || pressure > 106000))) {
     // void * a;
@@ -377,24 +379,24 @@ bool meass(void *) {
     // DEBUG_PRINT("RESTART");
     //ESP.restart();
   //}
-#ifdef humSI7021
-  dewPoint = calcDewPoint(humiditySI7021, temperature);
-#endif
-#ifdef humSHT40
-  dewPoint = calcDewPoint(humiditySHT40.relative_humidity, tempSHT40.temperature);
-#endif
+// #ifdef humSI7021
+  // dewPoint = calcDewPoint(humiditySI7021, temperature);
+// #endif
+// #ifdef humSHT40
+  // dewPoint = calcDewPoint(humiditySHT40.relative_humidity, tempSHT40.temperature);
+// #endif
   digitalWrite(LED_BUILTIN, HIGH);
 
   return true;
 }
 
-float calcDewPoint (float humidity, float temperature)  
-{  
-    float logEx;  
-    logEx = 0.66077 + (7.5 * temperature) / (237.3 + temperature)  
-            + (log10(humidity) - 2);  
-    return (logEx - 0.66077) * 237.3 / (0.66077 + 7.5 - logEx);  
-}
+// float calcDewPoint (float humidity, float temperature)  
+// {  
+    // float logEx;  
+    // logEx = 0.66077 + (7.5 * temperature) / (237.3 + temperature)  
+            // + (log10(humidity) - 2);  
+    // return (logEx - 0.66077) * 237.3 / (0.66077 + 7.5 - logEx);  
+// }
 
 void validateInput(const char *input, char *output)
 {
@@ -409,18 +411,18 @@ bool sendDataMQTT(void *) {
   DEBUG_PRINT(F("Send data..."));
 
   client.publish((String(mqtt_base) + "/Temperature").c_str(), String(temperature).c_str());
-  client.publish((String(mqtt_base) + "/Press").c_str(), String(pressure).c_str());
-  client.publish((String(mqtt_base) + "/Temp085").c_str(), String(temperature085).c_str());
-#ifdef humSI7021
-  client.publish((String(mqtt_base) + "/Temp7021").c_str(), String(tempSI7021).c_str());
-  client.publish((String(mqtt_base) + "/HumiditySI7021").c_str(), String(humiditySI7021).c_str());
-#endif
-#ifdef humSHT40
-  client.publish((String(mqtt_base) + "/TempSHT40").c_str(), String(tempSHT40.temperature).c_str());
-  client.publish((String(mqtt_base) + "/Humidity").c_str(), String(humiditySHT40.relative_humidity).c_str());
-#endif
+  //client.publish((String(mqtt_base) + "/Press").c_str(), String(pressure).c_str());
+  //client.publish((String(mqtt_base) + "/Temp085").c_str(), String(temperature085).c_str());
+// #ifdef humSI7021
+  // client.publish((String(mqtt_base) + "/Temp7021").c_str(), String(tempSI7021).c_str());
+  // client.publish((String(mqtt_base) + "/HumiditySI7021").c_str(), String(humiditySI7021).c_str());
+// #endif
+ #ifdef humSHT40
+   client.publish((String(mqtt_base) + "/TempSHT40").c_str(), String(tempSHT40.temperature).c_str());
+   client.publish((String(mqtt_base) + "/Humidity").c_str(), String(humiditySHT40.relative_humidity).c_str());
+ #endif
 
-  client.publish((String(mqtt_base) + "/DewPoint").c_str(), String(dewPoint).c_str());
+  //client.publish((String(mqtt_base) + "/DewPoint").c_str(), String(dewPoint).c_str());
 
   digitalWrite(LED_BUILTIN, HIGH);
   DEBUG_PRINTLN(F("DONE!"));
@@ -440,6 +442,7 @@ bool reconnect(void *) {
       client.subscribe((String(mqtt_base) + "/VitrPrumerPoslednich10Minut").c_str());
       client.subscribe((String(mqtt_base) + "/VitrMaxPoslednich30Minut").c_str());
       client.subscribe((String(mqtt_base) + "/VitrSmerPoslednich30Minut").c_str());
+      client.subscribe((String(mqtt_base) + "/Press").c_str());
       client.publish((String(mqtt_base) + "/LWT").c_str(), "online", true);
     } else {
       DEBUG_PRINT("disconected.");
