@@ -52,10 +52,11 @@ static const char* const      mqtt_config_portal_stop        = "disconfig";
 
 
 #define ONE_WIRE_BUSA                       16 //Dallas
-#define ONE_WIRE_BUSB                       17 //Dallas
+#define ONE_WIRE_BUSB                       18 //Dallas
 
-// const byte interruptPin = 2;
-// const byte analogPin    = A0;
+const byte srazkyPin                        = 12;
+const byte vitrPin                          = 11;
+const byte vitrSmerPin                      = 3;
 
 #define SEND_DELAY                           15000  //prodleva mezi poslanim dat v ms
 #define SENDSTAT_DELAY                       60000  //poslani statistiky kazdou minutu

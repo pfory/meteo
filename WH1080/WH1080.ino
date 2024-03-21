@@ -1,6 +1,6 @@
 #include "Configuration.h"
 
-int                   pulseCount = 0;
+int                   srazkyCount = 0;
 
 float                 dewPoint;
 float                 srazkyOdPulnoci = 0.f;
@@ -9,6 +9,7 @@ float                 vitrPrumerPoslednich10Minut = 0.f;
 float                 vitrMaxPoslednich30Minut = 0.f;
 float                 vitrSmerPoslednich30Minut = 0.f;
 
+int                   smerVetru = 0;
 
 #ifdef humSI7021
 SI7021 sensorHumiditySI7021;
@@ -56,10 +57,14 @@ bool                  VEML7700Present = false;
 
 //4 pulsy na otáčku
 //1 ipmuls 0,3m/s
-void pulseCountEvent() {
-  //digitalWrite(LED_BUILTIN, LOW);
-  pulseCount++;
-  //digitalWrite(LED_BUILTIN, HIGH);
+void IRAM_ATTR vitrEvent() {
+  DEBUG_PRINTLN("Vítr puls");
+  //srazkyCount++;
+}
+
+void IRAM_ATTR srazkyEvent() {
+  DEBUG_PRINTLN("Srážkoměr puls");
+  srazkyCount++;
 }
 
 //MQTT callback
@@ -94,32 +99,31 @@ void setup() {
   if (veml.begin()) {
     VEML7700Present = true;
     DEBUG_PRINTLN("VEML7700 sensor found");
+    DEBUG_PRINT(F("Gain: "));
+    switch (veml.getGain()) {
+      case VEML7700_GAIN_1: DEBUG_PRINTLN("1"); break;
+      case VEML7700_GAIN_2: DEBUG_PRINTLN("2"); break;
+      case VEML7700_GAIN_1_4: DEBUG_PRINTLN("1/4"); break;
+      case VEML7700_GAIN_1_8: DEBUG_PRINTLN("1/8"); break;
+    }
+
+    DEBUG_PRINT(F("Integration Time (ms): "));
+    switch (veml.getIntegrationTime()) {
+      case VEML7700_IT_25MS: DEBUG_PRINTLN("25"); break;
+      case VEML7700_IT_50MS: DEBUG_PRINTLN("50"); break;
+      case VEML7700_IT_100MS: DEBUG_PRINTLN("100"); break;
+      case VEML7700_IT_200MS: DEBUG_PRINTLN("200"); break;
+      case VEML7700_IT_400MS: DEBUG_PRINTLN("400"); break;
+      case VEML7700_IT_800MS: DEBUG_PRINTLN("800"); break;
+    }
+
+    veml.setLowThreshold(10000);
+    veml.setHighThreshold(20000);
+    veml.interruptEnable(true);
   } else {
     VEML7700Present = false;
     DEBUG_PRINTLN("VEML7700 sensor not found");
   }
-  
-  DEBUG_PRINT(F("Gain: "));
-  switch (veml.getGain()) {
-    case VEML7700_GAIN_1: DEBUG_PRINTLN("1"); break;
-    case VEML7700_GAIN_2: DEBUG_PRINTLN("2"); break;
-    case VEML7700_GAIN_1_4: DEBUG_PRINTLN("1/4"); break;
-    case VEML7700_GAIN_1_8: DEBUG_PRINTLN("1/8"); break;
-  }
-
-  DEBUG_PRINT(F("Integration Time (ms): "));
-  switch (veml.getIntegrationTime()) {
-    case VEML7700_IT_25MS: DEBUG_PRINTLN("25"); break;
-    case VEML7700_IT_50MS: DEBUG_PRINTLN("50"); break;
-    case VEML7700_IT_100MS: DEBUG_PRINTLN("100"); break;
-    case VEML7700_IT_200MS: DEBUG_PRINTLN("200"); break;
-    case VEML7700_IT_400MS: DEBUG_PRINTLN("400"); break;
-    case VEML7700_IT_800MS: DEBUG_PRINTLN("800"); break;
-  }
-
-  veml.setLowThreshold(10000);
-  veml.setHighThreshold(20000);
-  veml.interruptEnable(true);
 #endif
   
 #ifdef humSI7021
@@ -182,13 +186,18 @@ void setup() {
     DEBUG_PRINTLN("Sensor missing!!!");
   }
   
-  ticker.detach();
-  //pinMode(interruptPin, INPUT_PULLUP);
-  ///attachInterrupt(digitalPinToInterrupt(interruptPin), pulseCountEvent, RISING);
+ 
+  //pinMode(vitrSmerPin, INPUT);
+  analogReadResolution(12);
+  
+  pinMode(srazkyPin, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(srazkyPin), srazkyEvent, FALLING);
+  pinMode(vitrPin, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(vitrPin), vitrEvent, FALLING);
 
 #ifdef timers
   //setup timers
-  timer.every(5000, vypis);
+  //timer.every(5000, vypis);
   timer.every(SEND_DELAY, sendDataMQTT);
   timer.every(MEAS_DELAY, meass);
   timer.every(CONNECT_DELAY, reconnect);
@@ -198,6 +207,9 @@ void setup() {
   reconnect(a);
   sendNetInfoMQTT();
   sendStatisticMQTT(a);
+  
+  ticker.detach();
+
 }
 
 void loop() {
@@ -211,7 +223,7 @@ void loop() {
 }
 
 bool meass(void *) {
-  digitalWrite(LED_BUILTIN, HIGH);
+  //digitalWrite(LED_BUILTIN, HIGH);
   
   if (DS18B20PresentA) {
     dsSensorsA.requestTemperatures(); // Send the command to get temperatures
@@ -231,9 +243,8 @@ bool meass(void *) {
     dsSensorsB.requestTemperatures(); // Send the command to get temperatures
     delay(MEAS_TIME);
     if (dsSensorsB.getCheckForConversion()==true) {
-      temperatureB = dsSensorsA.getTempCByIndex(0);
+      temperatureB = dsSensorsB.getTempCByIndex(0);
     }
-    DEBUG_PRINTLN("-------------");
     DEBUG_PRINT("Temperature DS18B20 on bus B: ");
     DEBUG_PRINT(temperatureB); 
     DEBUG_PRINTLN(" *C");
@@ -304,6 +315,14 @@ bool meass(void *) {
     als = veml.readALS();
     white = veml.readWhite();
     lux = veml.readLux();
+    DEBUG_PRINT("VEML7700 ");
+    DEBUG_PRINT("als: ");
+    DEBUG_PRINT(als);
+    DEBUG_PRINT(" white: ");
+    DEBUG_PRINT(white);
+    DEBUG_PRINT(" lux: ");
+    DEBUG_PRINTLN(lux);
+    
 
     // uint16_t irq = veml.interruptStatus();
     // if (irq & VEML7700_INTERRUPT_LOW) {
@@ -315,25 +334,13 @@ bool meass(void *) {
   }
 #endif
 
-  digitalWrite(LED_BUILTIN, LOW);
+  smerVetru = analogRead(vitrSmerPin);
+  DEBUG_PRINT("Vítr ");
+  DEBUG_PRINT("smer: ");
+  DEBUG_PRINTLN(smerVetru);
 
-  return true;
-}
+  //digitalWrite(LED_BUILTIN, LOW);
 
-// float calcDewPoint (float humidity, float temperature)  
-// {  
-    // float logEx;  
-    // logEx = 0.66077 + (7.5 * temperature) / (237.3 + temperature)  
-            // + (log10(humidity) - 2);  
-    // return (logEx - 0.66077) * 237.3 / (0.66077 + 7.5 - logEx);  
-// }
-
-bool vypis(void *) {
-  DEBUG_PRINT(pulseCount*0.3);
-  DEBUG_PRINTLN(" m/s");
-  pulseCount = 0;
-  DEBUG_PRINTLN(analogRead(A0));
-  
   return true;
 }
 
