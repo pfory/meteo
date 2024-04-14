@@ -1,13 +1,16 @@
 #include "Configuration.h"
 
-int                   srazkyCount = 0;
+unsigned volatile int srazkyPulseCount            = 0;
+unsigned volatile int vitrPulseCount              = 0;
+//unsigned int          vitrPulseCountLast          = 0;
+unsigned long         lastSend                    = 0;
 
 float                 dewPoint;
-float                 srazkyOdPulnoci = 0.f;
-float                 srazkyPosledniHodina = 0.f;
+float                 srazkyOdPulnoci             = 0.f;
+float                 srazkyPosledniHodina        = 0.f;
 float                 vitrPrumerPoslednich10Minut = 0.f;
-float                 vitrMaxPoslednich30Minut = 0.f;
-float                 vitrSmerPoslednich30Minut = 0.f;
+float                 vitrMaxPoslednich30Minut    = 0.f;
+float                 vitrSmerPoslednich30Minut   = 0.f;
 
 int                   smerVetru = 0;
 
@@ -55,16 +58,15 @@ bool                  VEML7700Present = false;
 #endif
 
 
-//4 pulsy na otáčku
-//1 ipmuls 0,3m/s
 void IRAM_ATTR vitrEvent() {
   DEBUG_PRINTLN("Vítr puls");
-  //srazkyCount++;
+  vitrPulseCount++;
 }
 
+//1 puls = 0.2794mm
 void IRAM_ATTR srazkyEvent() {
   DEBUG_PRINTLN("Srážkoměr puls");
-  srazkyCount++;
+  srazkyPulseCount++;
 }
 
 //MQTT callback
@@ -79,15 +81,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   DEBUG_PRINTLN();
  
-  if (strcmp(topic, (String(mqtt_base) + "/" + String(mqtt_topic_restart)).c_str())==0) {
+  if (strcmp(topic, (String(mqtt_base) + "Test/" + String(mqtt_topic_restart)).c_str())==0) {
     DEBUG_PRINT("RESTART");
     ESP.restart();
-  } else if (strcmp(topic, (String(mqtt_base) + "/" + String(mqtt_topic_netinfo)).c_str())==0) {
+  } else if (strcmp(topic, (String(mqtt_base) + "Test/" + String(mqtt_topic_netinfo)).c_str())==0) {
     DEBUG_PRINTLN("NET INFO");
     sendNetInfoMQTT();    
-  } else if (strcmp(topic, (String(mqtt_base) + "/" + String(mqtt_config_portal)).c_str())==0) {
+  } else if (strcmp(topic, (String(mqtt_base) + "Test/" + String(mqtt_config_portal)).c_str())==0) {
     startConfigPortal();
-  } else if (strcmp(topic, (String(mqtt_base) + "/" + String(mqtt_config_portal_stop)).c_str())==0) {
+  } else if (strcmp(topic, (String(mqtt_base) + "Test/" + String(mqtt_config_portal_stop)).c_str())==0) {
     stopConfigPortal();
   }
 }
@@ -188,7 +190,8 @@ void setup() {
   
  
   //pinMode(vitrSmerPin, INPUT);
-  analogReadResolution(12);
+  analogReadResolution(13);
+  //analogSetAttenuation(ADC_2_5db);
   
   pinMode(srazkyPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(srazkyPin), srazkyEvent, FALLING);
@@ -198,7 +201,8 @@ void setup() {
 #ifdef timers
   //setup timers
   //timer.every(5000, vypis);
-  timer.every(SEND_DELAY, sendDataMQTT);
+  timer.every(SEND_DELAY,       sendDataMeteoMQTT);
+  timer.every(SEND_DELAY_ANEMO, sendDataAnemoMQTT);
   timer.every(MEAS_DELAY, meass);
   timer.every(CONNECT_DELAY, reconnect);
 #endif
@@ -224,7 +228,7 @@ void loop() {
 
 bool meass(void *) {
   //digitalWrite(LED_BUILTIN, HIGH);
-  
+ 
   if (DS18B20PresentA) {
     dsSensorsA.requestTemperatures(); // Send the command to get temperatures
     delay(MEAS_TIME);
@@ -334,17 +338,64 @@ bool meass(void *) {
   }
 #endif
 
-  smerVetru = analogRead(vitrSmerPin);
+  int smerTemp = 0;
+  for (unsigned int i=0;i<100;i++) {
+    smerTemp += analogRead(vitrSmerPin);
+  }
+  int smer = smerTemp/100;
   DEBUG_PRINT("Vítr ");
   DEBUG_PRINT("smer: ");
+  DEBUG_PRINT(smer);
+  DEBUG_PRINT(" - ");
+  // char buff[4] = "xxx";
+  // if (smer>135 && smer<165)   strcpy(buff,"VJV");
+  // if (smer>171 && smer<212)   strcpy(buff,"VSV");
+  // if (smer>213 && smer<230)   strcpy(buff,"V");
+  // if (smer>270 && smer<330)   strcpy(buff,"JJV");
+  // if (smer>414 && smer<506)   strcpy(buff,"JV");
+  // if (smer>576 && smer<700)   strcpy(buff,"JJV");
+  // if (smer>701 && smer<858)   strcpy(buff,"J");
+  // if (smer>1125 && smer<1365) strcpy(buff,"SSV");
+  // if (smer>1366 && smer<1661) strcpy(buff,"SV");
+  // if (smer>2115 && smer<2499) strcpy(buff,"ZJZ");
+  // if (smer>2500 && smer<2800) strcpy(buff,"JZ");
+  // if (smer>2916 && smer<3564) strcpy(buff,"SSZ");
+  // if (smer>3798 && smer<4500) strcpy(buff,"S");
+  // if (smer>4501 && smer<5313) strcpy(buff,"ZSZ");
+  // if (smer>5346 && smer<6534) strcpy(buff,"SZ");
+  // if (smer>6624 && smer<8096) strcpy(buff,"Z");
+  // DEBUG_PRINT(buff);
+  // DEBUG_PRINT(" - ");
+  smerVetru = getSmerStupne(smer);
   DEBUG_PRINTLN(smerVetru);
-
-  //digitalWrite(LED_BUILTIN, LOW);
+  //DEBUG_PRINTLN(analogReadMilliVolts(vitrSmerPin));
 
   return true;
 }
 
-bool sendDataMQTT(void *) {
+
+int getSmerStupne(int s) {
+  if (s>135 && s<165)   return 112;
+  if (s>171 && s<209)   return 67;
+  if (s>213 && s<230)   return 90;
+  if (s>270 && s<330)   return 157;
+  if (s>414 && s<506)   return 135;
+  if (s>576 && s<700)   return 202;
+  if (s>701 && s<858)   return 180;
+  if (s>1125 && s<1365) return 22;
+  if (s>1366 && s<1661) return 45;
+  if (s>2115 && s<2499) return 247;
+  if (s>2500 && s<2800) return 225;
+  if (s>2916 && s<3564) return 337;
+  if (s>3798 && s<4500) return 0;
+  if (s>4501 && s<5313) return 292;
+  if (s>5346 && s<6534) return 315;
+  if (s>6624 && s<8096) return 270;
+  return -10;
+}
+
+
+bool sendDataMeteoMQTT(void *) {
   digitalWrite(LED_BUILTIN, HIGH);
   DEBUG_PRINT(F("Send data..."));
 
@@ -367,12 +418,37 @@ bool sendDataMQTT(void *) {
   client.publish((String(mqtt_base) + "/lux").c_str(), String(lux).c_str());
 #endif  
 
-  //client.publish((String(mqtt_base) + "Test/DewPoint").c_str(), String(dewPoint).c_str());
+  //DEBUG_PRINTLN(srazkyPulseCount);
+  client.publish((String(mqtt_base) + "Test/srazkyPulse").c_str(), String(srazkyPulseCount).c_str());
+  srazkyPulseCount = 0;
 
   digitalWrite(LED_BUILTIN, LOW);
   DEBUG_PRINTLN(F("DONE!"));
   return true;
 }
+
+bool sendDataAnemoMQTT(void *) {
+  digitalWrite(LED_BUILTIN, HIGH);
+  DEBUG_PRINT(F("Send data..."));
+
+  client.publish((String(mqtt_base) + "Test/smerVetru").c_str(), String(smerVetru).c_str());
+
+  //DEBUG_PRINTLN(vitrPulseCount);
+  float pc = (float)vitrPulseCount/((millis() - lastSend) / 1000);
+  pc = pc * windSpeed;
+  //if (abs(pc - vitrPulseCountLast) < PULSECOUNTDIF) {
+    client.publish((String(mqtt_base) + "Test/rychlostVetru").c_str(), String(pc).c_str());
+  //}
+
+  //vitrPulseCountLast = pc;
+  vitrPulseCount = 0;
+  lastSend = millis();
+
+  digitalWrite(LED_BUILTIN, LOW);
+  DEBUG_PRINTLN(F("DONE!"));
+  return true;
+}
+
 
 bool reconnect(void *) {
   if (!client.connected()) {

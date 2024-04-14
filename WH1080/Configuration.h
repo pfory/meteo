@@ -25,7 +25,7 @@
 #endif
 
 //SW name & version
-#define     VERSION                          "0.01"
+#define     VERSION                          "0.05"
 #define     SW_NAME                          "MeteoNew"
 
 #define ota
@@ -58,7 +58,12 @@ const byte srazkyPin                        = 12;
 const byte vitrPin                          = 11;
 const byte vitrSmerPin                      = 3;
 
+//The cup-type anemometer measures wind speed by closing a contact as a magnet moves past a
+//switch. A wind speed of 2.4km/h causes the switch to close once per second.
+const float windSpeed                       = 2.4;
+
 #define SEND_DELAY                           15000  //prodleva mezi poslanim dat v ms
+#define SEND_DELAY_ANEMO                     5000  //prodleva mezi poslanim dat v ms
 #define SENDSTAT_DELAY                       60000  //poslani statistiky kazdou minutu
 #define CONNECT_DELAY                        5000 //ms
 #define MEAS_DELAY                           5000   //mereni
