@@ -1,6 +1,7 @@
 #include "Configuration.h"
 
 unsigned volatile int srazkyPulseCount            = 0;
+unsigned long         lastPulseSrazkyMillis       = 0;
 unsigned volatile int vitrPulseCount              = 0;
 //unsigned int          vitrPulseCountLast          = 0;
 unsigned long         lastSend                    = 0;
@@ -66,7 +67,10 @@ void IRAM_ATTR vitrEvent() {
 //1 puls = 0.2794mm
 void IRAM_ATTR srazkyEvent() {
   DEBUG_PRINTLN("Srážkoměr puls");
-  srazkyPulseCount++;
+   if (millis() - lastPulseSrazkyMillis > 1000) {
+    lastPulseSrazkyMillis = millis();
+    srazkyPulseCount++;
+  }
 }
 
 //MQTT callback

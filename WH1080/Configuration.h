@@ -25,7 +25,7 @@
 #endif
 
 //SW name & version
-#define     VERSION                          "0.05"
+#define     VERSION                          "0.06"
 #define     SW_NAME                          "MeteoNew"
 
 #define ota
