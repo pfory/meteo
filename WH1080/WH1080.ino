@@ -85,15 +85,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   DEBUG_PRINTLN();
  
-  if (strcmp(topic, (String(mqtt_base) + "Test/" + String(mqtt_topic_restart)).c_str())==0) {
+  if (strcmp(topic, (String(mqtt_base) + String(mqtt_topic_restart)).c_str())==0) {
     DEBUG_PRINT("RESTART");
     ESP.restart();
-  } else if (strcmp(topic, (String(mqtt_base) + "Test/" + String(mqtt_topic_netinfo)).c_str())==0) {
+  } else if (strcmp(topic, (String(mqtt_base) + String(mqtt_topic_netinfo)).c_str())==0) {
     DEBUG_PRINTLN("NET INFO");
     sendNetInfoMQTT();    
-  } else if (strcmp(topic, (String(mqtt_base) + "Test/" + String(mqtt_config_portal)).c_str())==0) {
+  } else if (strcmp(topic, (String(mqtt_base) + String(mqtt_config_portal)).c_str())==0) {
     startConfigPortal();
-  } else if (strcmp(topic, (String(mqtt_base) + "Test/" + String(mqtt_config_portal_stop)).c_str())==0) {
+  } else if (strcmp(topic, (String(mqtt_base) + String(mqtt_config_portal_stop)).c_str())==0) {
     stopConfigPortal();
   }
 }
@@ -197,9 +197,9 @@ void setup() {
   analogReadResolution(13);
   //analogSetAttenuation(ADC_2_5db);
   
-  pinMode(srazkyPin, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(srazkyPin), srazkyEvent, FALLING);
-  pinMode(vitrPin, INPUT_PULLUP);
+  pinMode(srazkyPin, INPUT);
+  attachInterrupt(digitalPinToInterrupt(srazkyPin), srazkyEvent, RISING);
+  pinMode(vitrPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(vitrPin), vitrEvent, FALLING);
 
 #ifdef timers
@@ -403,27 +403,27 @@ bool sendDataMeteoMQTT(void *) {
   digitalWrite(LED_BUILTIN, HIGH);
   DEBUG_PRINT(F("Send data..."));
 
-  client.publish((String(mqtt_base) + "Test/Temperature").c_str(), String(temperatureA).c_str());
-  client.publish((String(mqtt_base) + "Test/Temperature0").c_str(), String(temperatureB).c_str());
-  client.publish((String(mqtt_base) + "/Press").c_str(), String(pressure).c_str());
-  client.publish((String(mqtt_base) + "/Temp085").c_str(), String(temperature085).c_str());
+  client.publish((String(mqtt_base) + "/Temperature").c_str(), String(temperatureA).c_str());
+  client.publish((String(mqtt_base) + "/Temperature0").c_str(), String(temperatureB).c_str());
+  client.publish((String(mqtt_base_old) + "/Press").c_str(), String(pressure).c_str());
+  client.publish((String(mqtt_base_old) + "/Temp085").c_str(), String(temperature085).c_str());
 #ifdef humSI7021
-  client.publish((String(mqtt_base) + "/Temp7021").c_str(), String(13.6f).c_str());
-  client.publish((String(mqtt_base) + "/HumiditySI7021").c_str(), String(88).c_str());
+  client.publish((String(mqtt_base_old) + "/Temp7021").c_str(), String(13.6f).c_str());
+  client.publish((String(mqtt_base_old) + "/HumiditySI7021").c_str(), String(88).c_str());
 #endif
 #ifdef humSHT40
-  client.publish((String(mqtt_base) + "Test/TempSHT40").c_str(), String(tempSHT40.temperature).c_str());
-  client.publish((String(mqtt_base) + "Test/Humidity").c_str(), String(humiditySHT40.relative_humidity).c_str());
+  client.publish((String(mqtt_base) + "/TempSHT40").c_str(), String(tempSHT40.temperature).c_str());
+  client.publish((String(mqtt_base) + "/Humidity").c_str(), String(humiditySHT40.relative_humidity).c_str());
 #endif
 
 #ifdef luxmeter
-  client.publish((String(mqtt_base) + "/als").c_str(), String(als).c_str());
-  client.publish((String(mqtt_base) + "/white").c_str(), String(white).c_str());
-  client.publish((String(mqtt_base) + "/lux").c_str(), String(lux).c_str());
+  client.publish((String(mqtt_base_old) + "/als").c_str(), String(als).c_str());
+  client.publish((String(mqtt_base_old) + "/white").c_str(), String(white).c_str());
+  client.publish((String(mqtt_base_old) + "/lux").c_str(), String(lux).c_str());
 #endif  
 
   //DEBUG_PRINTLN(srazkyPulseCount);
-  client.publish((String(mqtt_base) + "Test/srazkyPulse").c_str(), String(srazkyPulseCount).c_str());
+  client.publish((String(mqtt_base) + "/srazkyPulse").c_str(), String(srazkyPulseCount).c_str());
   srazkyPulseCount = 0;
 
   digitalWrite(LED_BUILTIN, LOW);
@@ -435,13 +435,13 @@ bool sendDataAnemoMQTT(void *) {
   digitalWrite(LED_BUILTIN, HIGH);
   DEBUG_PRINT(F("Send data..."));
 
-  client.publish((String(mqtt_base) + "Test/smerVetru").c_str(), String(smerVetru).c_str());
+  client.publish((String(mqtt_base) + "/smerVetru").c_str(), String(smerVetru).c_str());
 
   //DEBUG_PRINTLN(vitrPulseCount);
   float pc = (float)vitrPulseCount/((millis() - lastSend) / 1000);
   pc = pc * windSpeed;
   //if (abs(pc - vitrPulseCountLast) < PULSECOUNTDIF) {
-    client.publish((String(mqtt_base) + "Test/rychlostVetru").c_str(), String(pc).c_str());
+    client.publish((String(mqtt_base) + "/rychlostVetru").c_str(), String(pc).c_str());
   //}
 
   //vitrPulseCountLast = pc;
@@ -457,12 +457,12 @@ bool sendDataAnemoMQTT(void *) {
 bool reconnect(void *) {
   if (!client.connected()) {
     DEBUG_PRINT("Attempting MQTT connection...");
-    if (client.connect((String(mqtt_base) + "Test").c_str(), mqtt_username, mqtt_key, (String(mqtt_base) + "Test/LWT").c_str(), 2, true, "offline", true)) {
-      client.subscribe((String(mqtt_base) + "Test/" + String(mqtt_topic_restart)).c_str());
-      client.subscribe((String(mqtt_base) + "Test/" + String(mqtt_topic_netinfo)).c_str());
-      client.subscribe((String(mqtt_base) + "Test/" + String(mqtt_config_portal_stop)).c_str());
-      client.subscribe((String(mqtt_base) + "Test/" + String(mqtt_config_portal)).c_str());
-      client.publish((String(mqtt_base) + "Test/LWT").c_str(), "online", true);
+    if (client.connect((String(mqtt_base)).c_str(), mqtt_username, mqtt_key, (String(mqtt_base) + "/LWT").c_str(), 2, true, "offline", true)) {
+      client.subscribe((String(mqtt_base) + String(mqtt_topic_restart)).c_str());
+      client.subscribe((String(mqtt_base) + String(mqtt_topic_netinfo)).c_str());
+      client.subscribe((String(mqtt_base) + String(mqtt_config_portal_stop)).c_str());
+      client.subscribe((String(mqtt_base) + String(mqtt_config_portal)).c_str());
+      client.publish((String(mqtt_base) + "/LWT").c_str(), "online", true);
       DEBUG_PRINTLN("connected");
     } else {
       DEBUG_PRINT("disconected.");
