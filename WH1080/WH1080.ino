@@ -1,8 +1,8 @@
 #include "Configuration.h"
 
-unsigned volatile int srazkyPulseCount            = 0;
+unsigned int          srazkyPulseCount            = 0;
 unsigned long         lastPulseSrazkyMillis       = 0;
-unsigned volatile int vitrPulseCount              = 0;
+unsigned int          vitrPulseCount              = 0;
 //unsigned int          vitrPulseCountLast          = 0;
 unsigned long         lastSend                    = 0;
 
@@ -44,13 +44,24 @@ DallasTemperature dsSensorsB(&onewireB);
 float                 temperatureB        = 0.f;
 bool                  DS18B20PresentB     = false;
 
+#ifdef BMP085
 Adafruit_BMP085 bmp;
 float                 high_above_sea      = 369.0;
 float                 pressure            = 0.f;
 float                 temperature085      = 0.f;
 bool                  BMP085Present       = false;
+#endif
 
-#ifdef luxmeter
+#ifdef BMP280
+Adafruit_BMP280 bmp;
+float                 high_above_sea      = 369.0;
+float                 pressure            = 0.f;
+float                 pressureSeaLevel    = 0.f;
+float                 temperature280      = 0.f;
+bool                  BMP280Present       = false;
+#endif
+
+#ifdef VEML7700
 Adafruit_VEML7700 veml = Adafruit_VEML7700();
 float                 als;
 float                 white;
@@ -58,14 +69,19 @@ float                 lux;
 bool                  VEML7700Present = false;
 #endif
 
+#ifdef BH1750light
+float                 lux;
+BH1750                lightMeter;
+#endif
 
-void IRAM_ATTR vitrEvent() {
+
+void ARDUINO_ISR_ATTR vitrEvent() {
   DEBUG_PRINTLN("Vítr puls");
   vitrPulseCount++;
 }
 
 //1 puls = 0.2794mm
-void IRAM_ATTR srazkyEvent() {
+void ARDUINO_ISR_ATTR srazkyEvent() {
   DEBUG_PRINTLN("Srážkoměr puls");
    if (millis() - lastPulseSrazkyMillis > 1000) {
     lastPulseSrazkyMillis = millis();
@@ -101,7 +117,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 void setup() {
   preSetup();
 
-#ifdef luxmeter
+#ifdef VEML7700
   if (veml.begin()) {
     VEML7700Present = true;
     DEBUG_PRINTLN("VEML7700 sensor found");
@@ -131,7 +147,12 @@ void setup() {
     DEBUG_PRINTLN("VEML7700 sensor not found");
   }
 #endif
-  
+
+#ifdef BH1750light
+  Wire.begin(SDAPIN, SCLPIN);
+  lightMeter.begin();
+#endif 
+
 #ifdef humSI7021
   DEBUG_PRINT("\nProbe SI7021: ");
   if (sensorHumiditySI7021.begin(SDAPIN, SCLPIN)) {
@@ -160,6 +181,31 @@ void setup() {
   }
 #endif
 
+#ifdef BMP085
+  DEBUG_PRINT("Probe BMP085: ");
+  if (bmp.begin()==1) {
+    BMP085Present = true;
+    DEBUG_PRINTLN("Sensor found.");
+    } else {
+    DEBUG_PRINTLN("Sensor missing!!!");
+  }
+#endif
+
+#ifdef BMP280
+  DEBUG_PRINT("Probe BMP280: ");
+  if (bmp.begin()) {
+    BMP280Present = true;
+    DEBUG_PRINTLN("Sensor found.");
+    /* Default settings from datasheet.  */ 
+    bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+    Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
+    Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
+    Adafruit_BMP280::FILTER_X16,      /* Filtering. */
+    Adafruit_BMP280::STANDBY_MS_500);  /* Standby time. */
+  } else {
+    DEBUG_PRINTLN("Sensor missing!!!");
+  }
+#endif
 
   DEBUG_PRINT("Probe DS18B20 on bus A: ");
   dsSensorsA.begin(); 
@@ -183,23 +229,14 @@ void setup() {
     DEBUG_PRINTLN("Sensor missing!!!!");
   }
 
-
-  DEBUG_PRINT("Probe BMP085: ");
-  if (bmp.begin()==1) {
-    BMP085Present = true;
-    DEBUG_PRINTLN("Sensor found.");
-    } else {
-    DEBUG_PRINTLN("Sensor missing!!!");
-  }
-  
  
   //pinMode(vitrSmerPin, INPUT);
   analogReadResolution(13);
   //analogSetAttenuation(ADC_2_5db);
   
-  pinMode(srazkyPin, INPUT);
-  attachInterrupt(digitalPinToInterrupt(srazkyPin), srazkyEvent, RISING);
-  pinMode(vitrPin, INPUT);
+  pinMode(srazkyPin, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(srazkyPin), srazkyEvent, FALLING);
+  pinMode(vitrPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(vitrPin), vitrEvent, FALLING);
 
 #ifdef timers
@@ -237,7 +274,7 @@ bool meass(void *) {
     dsSensorsA.requestTemperatures(); // Send the command to get temperatures
     delay(MEAS_TIME);
     if (dsSensorsA.getCheckForConversion()==true) {
-      temperatureA = dsSensorsA.getTempCByIndex(0);
+      temperatureA = dsSensorsA.getTempCByIndex(0) + korekceTeploty;
     }
     DEBUG_PRINTLN("-------------");
     DEBUG_PRINT("Temperature DS18B20 on bus A: ");
@@ -297,6 +334,7 @@ bool meass(void *) {
   }
 #endif
 
+#ifdef BMP085
   if (BMP085Present) {
     DEBUG_PRINT("Temperature BMP085: ");
     temperature085 = bmp.readTemperature();
@@ -310,7 +348,27 @@ bool meass(void *) {
     temperature085 = 0.0;  //dummy
     pressure = 0;     //Pa - dummy
   }
-  
+#endif
+
+#ifdef BMP280
+  if (BMP280Present) {
+    DEBUG_PRINT("Temperature BMP280: ");
+    temperature280 = bmp.readTemperature();
+    pressure = bmp.readPressure();
+    pressureSeaLevel = pressure / pow(1 - ((0.0065 *high_above_sea) / (temperature280 + (0.0065 *high_above_sea) + 273.15)), 5.257);
+    //pressureSeaLevel = (pressure/pow(1-(high_above_sea/44330), 5.255));
+    DEBUG_PRINT(temperature280);
+    DEBUG_PRINTLN(" *C");
+    DEBUG_PRINT("Pressure: ");
+    DEBUG_PRINT(pressure);
+    DEBUG_PRINTLN(" Pa");
+  } else {
+    temperature280 = 0.0;  //dummy
+    pressure = 0;     //Pa - dummy
+  }
+#endif
+
+
 // #ifdef humSI7021
   // dewPoint = calcDewPoint(humiditySI7021, temperatureA);
 // #endif
@@ -318,7 +376,7 @@ bool meass(void *) {
   // dewPoint = calcDewPoint(humiditySHT40.relative_humidity, temperatureA);
 // #endif
   
-#ifdef luxmeter
+#ifdef VEML7700
   if (VEML7700Present) {
     als = veml.readALS();
     white = veml.readWhite();
@@ -340,6 +398,10 @@ bool meass(void *) {
       // DEBUG_PRINTLN("** High threshold");
     // }
   }
+#endif
+
+#ifdef BH1750light
+  float lux = 10; //lightMeter.readLightLevel();
 #endif
 
   int smerTemp = 0;
@@ -379,23 +441,23 @@ bool meass(void *) {
 
 
 int getSmerStupne(int s) {
-  if (s>135 && s<165)   return 112;
-  if (s>171 && s<209)   return 67;
-  if (s>213 && s<230)   return 90;
-  if (s>270 && s<330)   return 157;
-  if (s>414 && s<506)   return 135;
-  if (s>576 && s<700)   return 202;
-  if (s>701 && s<858)   return 180;
-  if (s>1125 && s<1365) return 22;
-  if (s>1366 && s<1661) return 45;
-  if (s>2115 && s<2499) return 247;
-  if (s>2500 && s<2800) return 225;
-  if (s>2916 && s<3564) return 337;
-  if (s>3798 && s<4500) return 0;
-  if (s>4501 && s<5313) return 292;
-  if (s>5346 && s<6534) return 315;
-  if (s>6624 && s<8096) return 270;
-  return -10;
+  if (s>=135 && s<=165)   return 112;
+  if (s>=171 && s<=209)   return 67;
+  if (s>=210 && s<=230)   return 90;
+  if (s>=270 && s<=360)   return 157;
+  if (s>=400 && s<=506)   return 135;
+  if (s>=570 && s<=700)   return 202;
+  if (s>=701 && s<=858)   return 180;
+  if (s>=1125 && s<=1365) return 22;
+  if (s>=1366 && s<=1661) return 45;
+  if (s>=2115 && s<=2499) return 247;
+  if (s>=2500 && s<=2800) return 225;
+  if (s>=2916 && s<=3590) return 337;
+  if (s>=3798 && s<=4500) return 0;
+  if (s>=4501 && s<=5313) return 292;
+  if (s>=5346 && s<=6580) return 315;
+  if (s>=6624 && s<=8096) return 270;
+  return -s;
 }
 
 
@@ -405,8 +467,15 @@ bool sendDataMeteoMQTT(void *) {
 
   client.publish((String(mqtt_base) + "/Temperature").c_str(), String(temperatureA).c_str());
   client.publish((String(mqtt_base) + "/Temperature0").c_str(), String(temperatureB).c_str());
+#ifdef BMP085
   client.publish((String(mqtt_base_old) + "/Press").c_str(), String(pressure).c_str());
   client.publish((String(mqtt_base_old) + "/Temp085").c_str(), String(temperature085).c_str());
+#endif
+#ifdef BMP280
+  client.publish((String(mqtt_base_old) + "/Press").c_str(), String(pressureSeaLevel).c_str());
+  client.publish((String(mqtt_base_old) + "/PressLevel").c_str(), String(pressure).c_str());
+  client.publish((String(mqtt_base_old) + "/Temp280").c_str(), String(temperature280).c_str());
+#endif
 #ifdef humSI7021
   client.publish((String(mqtt_base_old) + "/Temp7021").c_str(), String(13.6f).c_str());
   client.publish((String(mqtt_base_old) + "/HumiditySI7021").c_str(), String(88).c_str());
@@ -416,11 +485,15 @@ bool sendDataMeteoMQTT(void *) {
   client.publish((String(mqtt_base) + "/Humidity").c_str(), String(humiditySHT40.relative_humidity).c_str());
 #endif
 
-#ifdef luxmeter
+#ifdef VEML7700
   client.publish((String(mqtt_base_old) + "/als").c_str(), String(als).c_str());
   client.publish((String(mqtt_base_old) + "/white").c_str(), String(white).c_str());
   client.publish((String(mqtt_base_old) + "/lux").c_str(), String(lux).c_str());
 #endif  
+
+#ifdef BH1750light
+  client.publish((String(mqtt_base_old) + "/lux").c_str(), String(lux).c_str());
+#endif
 
   //DEBUG_PRINTLN(srazkyPulseCount);
   client.publish((String(mqtt_base) + "/srazkyPulse").c_str(), String(srazkyPulseCount).c_str());
@@ -438,15 +511,15 @@ bool sendDataAnemoMQTT(void *) {
   client.publish((String(mqtt_base) + "/smerVetru").c_str(), String(smerVetru).c_str());
 
   //DEBUG_PRINTLN(vitrPulseCount);
-  float pc = (float)vitrPulseCount/((millis() - lastSend) / 1000);
-  pc = pc * windSpeed;
+  float pc = (float)vitrPulseCount/((millis() - lastSend) / 1000); //pocet pulsu za sekundu
+  vitrPulseCount = 0;
+  lastSend = millis();
+  pc = pc * windSpeed; //1 puls 2,4km/h
   //if (abs(pc - vitrPulseCountLast) < PULSECOUNTDIF) {
     client.publish((String(mqtt_base) + "/rychlostVetru").c_str(), String(pc).c_str());
   //}
 
   //vitrPulseCountLast = pc;
-  vitrPulseCount = 0;
-  lastSend = millis();
 
   digitalWrite(LED_BUILTIN, LOW);
   DEBUG_PRINTLN(F("DONE!"));
