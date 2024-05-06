@@ -453,9 +453,9 @@ int getSmerStupne(int s) {
   if (s>=2115 && s<=2499) return 247;
   if (s>=2500 && s<=2800) return 225;
   if (s>=2916 && s<=3590) return 337;
-  if (s>=3798 && s<=4500) return 0;
+  if (s>=3700 && s<=4500) return 0;
   if (s>=4501 && s<=5313) return 292;
-  if (s>=5346 && s<=6580) return 315;
+  if (s>=5330 && s<=6580) return 315;
   if (s>=6624 && s<=8096) return 270;
   return -s;
 }
