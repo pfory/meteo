@@ -496,8 +496,10 @@ bool sendDataMeteoMQTT(void *) {
 #endif
 
   //DEBUG_PRINTLN(srazkyPulseCount);
-  client.publish((String(mqtt_base) + "/srazkyPulse").c_str(), String(srazkyPulseCount).c_str());
-  srazkyPulseCount = 0;
+  if (srazkyPulseCount>0) {
+    client.publish((String(mqtt_base) + "/srazkyPulse").c_str(), String(srazkyPulseCount).c_str());
+    srazkyPulseCount = 0;
+  }
 
   digitalWrite(LED_BUILTIN, LOW);
   DEBUG_PRINTLN(F("DONE!"));

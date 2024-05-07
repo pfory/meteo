@@ -2,7 +2,7 @@
 #define CONFIGURATION_H
 
 //SW name & version
-#define     VERSION                          "0.10"
+#define     VERSION                          "0.11"
 #define     SW_NAME                          "MeteoNew"
 
 
