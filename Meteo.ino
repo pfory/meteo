@@ -50,56 +50,11 @@ float                 pressure            = 0.f;
 float                 temperature085      = 0.f;
 bool                  BMP085Present       = false;
 
-// #ifdef serverHTTP
-// ESP8266WebServer server(81);
-// #endif
-/*
-#ifdef serverHTTP
-void handleRoot() {
-	char temp[600];
-  DEBUG_PRINT("Web client request...");
-  digitalWrite(LED_BUILTIN, LOW);
-  int h;
-#ifdef humSI7021      
-  h = (int)humiditySI7021;
-#endif
-#ifdef humSHT40
-  h = (int)humiditySHT40.relative_humidity;
-#endif
-  
-  // temperature = -4.625;
-  // humidity=96.5f;
-  // pressure=102370f;
-  // dewPoint=1.5f;
-  
-  snprintf(temp, 600, "<html><head><meta charset='UTF-8'></head><body>\
-           T2899BDCF02000076,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%s%d.%02d<br />\
-           Humidity,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%d.00<br />\
-           Press,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%d.00<br />\
-           DewPoint,%4d-%02d-%02dT%02d:%02d:%02d.000000Z,%s%d.%02d<br />\
-        </body>\
-      </html>", year(), month(), day(), hour(), minute(), second(),
-      temperature<0 && temperature>-1 ? "-":"",
-      (int)temperature, (int)abs((temperature - (int)temperature) * 100),
-      year(), month(), day(), hour(), minute(), second(),
-      h,
-      year(), month(), day(), hour(), minute(), second(),
-      (int)(round(pressure/100)),
-      year(), month(), day(), hour(), minute(), second(),
-      dewPoint<0 && dewPoint>-1 ? "-":"",
-      (int)dewPoint, (int)abs((dewPoint - (int)dewPoint) * 100)
-  );
-	server.send ( 200, "text/html", temp );
-  DEBUG_PRINTLN("done.");
-  digitalWrite(LED_BUILTIN, HIGH);
-}
-#endif
-*/
 #ifdef serverHTTP
 void handleRoot() {
 	char temp[200];
   DEBUG_PRINT("Web client request...");
-  digitalWrite(LED_BUILTIN, LOW);
+//  digitalWrite(LED_BUILTIN, LOW);
   int h;
 #ifdef humSI7021      
   h = (int)humiditySI7021;
@@ -119,17 +74,6 @@ void handleRoot() {
   //|datum|čas|teplota|vlhkost|tlak (přepočtený na hladinu moře, relativní)|rychlost větru v m/s (maximální náraz za 30 minut)
   //|směr ve stupních|dnešní srážky (od půlnoci)|průměrná rychlost větru za 10 minut v m/s|aktuální intenzita deště v mm/h).
   
-  /*snprintf(temp, 100, "<html><head><meta charset='UTF-8'></head><body>\
-            |%2d.%02d.%02d|%02d:%02d|%s%d.%02d|%d|%d.%1d|||%d.%1d|||</body></html>",
-            day(), month(), year(), hour(), minute(),
-            temperature<0 && temperature>-1 ? "-":"",
-            (int)temperature, (int)abs((temperature - (int)temperature) * 100),
-            h,
-            (int)pressure/100, (int)((pressure/100 - (int)pressure/100) * 100),
-            //0,0,
-            (int)srazkyOdPulnoci, (int)((srazkyOdPulnoci - (int)srazkyOdPulnoci) * 10)
-            //0,0
-  );*/
   snprintf(temp, 200, "<html><head><meta charset='UTF-8'></head><body>\
             |%2d.%02d.%02d|%02d:%02d|%2.1f|%d|%4.1f|%2.1f|%3.0f|%3.1f|%2.1f|%3.1f|</body></html>",
             day(), month(), year(), hour(), minute(),
@@ -148,7 +92,7 @@ void handleRoot() {
   //client.publish((String(mqtt_base) + "/DataInPocasi").c_str(), temp);
 
   DEBUG_PRINTLN("done.");
-  digitalWrite(LED_BUILTIN, HIGH);
+  //digitalWrite(LED_BUILTIN, HIGH);
 }
 #endif
 
@@ -271,10 +215,9 @@ void setup() {
   sendNetInfoMQTT();  
 
   ticker.detach();
-  //keep LED on
   digitalWrite(LED_BUILTIN, HIGH);
 
-  //drd.stop();
+  drd->stop();
 
   DEBUG_PRINTLN(F("SETUP END......................."));
 }

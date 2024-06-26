@@ -2,7 +2,7 @@
 #define CONFIGURATION_H
 
 //SW name & version
-#define     VERSION                          "0.11"
+#define     VERSION                          "0.32"
 #define     SW_NAME                          "MeteoNew"
 
 
@@ -54,19 +54,14 @@
 #define cas
 #define timers
 
-//#define serverHTTP
-#define serverHTTP32
-#if defined(serverHTTP)
-#include <ESP8266WebServer.h>
-#endif
+#define serverHTTP
 
 
 static const char* const      mqtt_server                    = "192.168.1.56";
 static const uint16_t         mqtt_port                      = 1883;
 static const char* const      mqtt_username                  = "datel";
 static const char* const      mqtt_key                       = "hanka12";
-static const char* const      mqtt_base                      = "/home/MeteoTest";
-static const char* const      mqtt_base_old                  = "/home/Meteo";
+static const char* const      mqtt_base                      = "/home/Meteo";
 static const char* const      mqtt_topic_restart             = "restart";
 static const char* const      mqtt_topic_netinfo             = "netinfo";
 static const char* const      mqtt_config_portal             = "config";

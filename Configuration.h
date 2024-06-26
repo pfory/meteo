@@ -8,7 +8,7 @@
 #include <DallasTemperature.h>
 #include <Adafruit_BMP085.h> 
 #include <OneWire.h>
-#include <ESP8266WebServer.h>
+// #include <ESP8266WebServer.h>
 
 #ifdef humSI7021
 #include <SI7021.h>
