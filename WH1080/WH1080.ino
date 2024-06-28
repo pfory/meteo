@@ -326,7 +326,7 @@ void setup() {
   //analogSetAttenuation(ADC_2_5db);
   
   pinMode(srazkyPin, INPUT_PULLUP);
-  //attachInterrupt(digitalPinToInterrupt(srazkyPin), srazkyEvent, FALLING);
+  attachInterrupt(digitalPinToInterrupt(srazkyPin), srazkyEvent, FALLING);
   pinMode(vitrPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(vitrPin), vitrEvent, FALLING);
 
